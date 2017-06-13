@@ -1,0 +1,14 @@
+*~
+*.pyc
+*.swp
+
+*.egg-info/
+build/
+develop-eggs/
+dist/
+
+.eggs
+.tox
+
+.project
+.pydevproject
