@@ -1,22 +1,24 @@
 
-import sys
-import logging
 import time
 import re
+import logging
 
 from cloudshell.shell.core.context import (ResourceCommandContext, ResourceContextDetails, ReservationContextDetails,
                                            ConnectivityContext)
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.shell.core.context_utils import get_resource_name
+from cloudshell.core.logger.qs_logger import get_qs_logger
 
 import quali_rest_api_helper
 
 
-def create_logger(log_file):
+def get_logger(context):
+    """
 
-    logger = logging.getLogger('root')
-    logger.addHandler(logging.FileHandler(log_file))
-    logger.addHandler(logging.StreamHandler(sys.stdout))
+    :return: logger according to cloudshell standards.
+    """
+
+    logger = get_qs_logger(log_group='traffic_shells', log_file_prefix=context.resource.name)
     logger.setLevel(logging.DEBUG)
     return logger
 
