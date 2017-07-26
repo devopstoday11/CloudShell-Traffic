@@ -66,11 +66,13 @@ def attach_stats_csv(context, logger, view_name, output):
     write_to_reservation_out(context, 'Statistics view saved in attached file - ' + full_file_name)
 
 
-def create_context(session, env_name, resource_name, client_install_path, controller_address='', controller_port=''):
+def create_context(server_address, session, env_name,
+                   resource_name, client_install_path, controller_address='', controller_port=''):
+
     context = ResourceCommandContext()
 
     context.connectivity = ConnectivityContext()
-    context.connectivity.server_address = 'localhost'
+    context.connectivity.server_address = server_address
     context.connectivity.admin_auth_token = session.token_id
 
     response = session.CreateImmediateTopologyReservation('tgn unittest', 'admin', 60, False, False, 0, env_name,
