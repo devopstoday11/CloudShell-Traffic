@@ -2,12 +2,14 @@
 import time
 import re
 import logging
+import yaml
 
 from cloudshell.shell.core.context import (ResourceCommandContext, ResourceContextDetails, ReservationContextDetails,
                                            ConnectivityContext)
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.shell.core.context_utils import get_resource_name
 from cloudshell.core.logger.qs_logger import get_qs_logger
+from cloudshell.api.cloudshell_api import CloudShellAPISession
 
 import quali_rest_api_helper
 
@@ -64,6 +66,22 @@ def attach_stats_csv(context, logger, view_name, output):
     full_file_name = view_name.replace(' ', '_') + '_' + time.ctime().replace(' ', '_') + '.csv'
     quali_api_helper.upload_file(context.reservation.reservation_id, file_name=full_file_name, file_stream=output)
     write_to_reservation_out(context, 'Statistics view saved in attached file - ' + full_file_name)
+
+#
+# Test helpers.
+#
+
+
+def create_session_from_cloudshell_config():
+
+    with open('../cloudshell_config.yml', 'r') as f:
+        doc = yaml.load(f)
+    username = doc['install']['username']
+    password = doc['install']['password']
+    domain = doc['install']['domain']
+    host = doc['install']['host']
+
+    return CloudShellAPISession(host, username, password, domain)
 
 
 def create_context(server_address, session, env_name,
