@@ -1,15 +1,12 @@
+#!/usr/bin/env python
+# encoding: utf-8
 
 from setuptools import setup, find_packages
-import os
 
-with open(os.path.join('version.txt')) as version_file:
-    version_from_file = version_file.read().strip()
+from cloudshell.traffic import __version__
 
 with open('requirements.txt') as f_required:
     required = f_required.read().splitlines()
-
-with open('test_requirements.txt') as f_tests:
-    required_for_tests = f_tests.read().splitlines()
 
 setup(
     name='cloudshell-traffic',
@@ -19,8 +16,7 @@ setup(
     packages=find_packages(),
     install_requires=required,
     test_suite='cloudshell.traffic.test',
-    tests_require=required_for_tests,
-    version=version_from_file,
+    version=__version__,
     description='QualiSystems Python base class and utilities for traffic generators shells (chassis and controller)',
     include_package_data=True,
     license='Apache Software License',
@@ -33,7 +29,4 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Operating System :: OS Independent',
         'Topic :: Software Development :: Testing :: Traffic Generation'],
-    extras_require={
-        'testing': ['pytest'],
-    }
 )
