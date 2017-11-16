@@ -1,3 +1,5 @@
-cloudshell-shell-core
 requests
 pytest
+PyYAML
+cloudshell-core
+cloudshell-shell-core
