@@ -1,4 +1,6 @@
 
+import time
+
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 
 import tg_helper
@@ -22,6 +24,6 @@ class TrafficControllerDriver(ResourceDriverInterface):
     def keep_alive(self, context, cancellation_context):
 
         while not cancellation_context.is_cancelled:
-            pass
+            time.sleep(2)
         if cancellation_context.is_cancelled:
             self.cleanup()
