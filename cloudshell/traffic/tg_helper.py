@@ -35,6 +35,39 @@ def get_reservation_ports(session, reservation_id, model_name='Generic Traffic G
     return reservation_ports
 
 
+def get_reservation_resources(session, reservation_id, *models):
+    """ Get all resources of given models in reservation.
+
+    :param session: CloudShell session
+    :type session: cloudshell.api.cloudshell_api.CloudShellAPISession
+    :param reservation_id: active reservation ID
+    :param models: list of requested models
+    :return: list of all resources of models in reservation
+    """
+
+    models_resources = []
+    reservation = session.GetReservationDetails(reservation_id).ReservationDescription
+    for resource in reservation.Resources:
+        if resource.ResourceModelName in models:
+            models_resources.append(resource)
+    return models_resources
+
+
+def _family_attribute_name(resource, attribute):
+    family_attribute_name = attribute
+    if resource.ResourceFamilyName.startswith('CS_'):
+        family_attribute_name = resource.ResourceFamilyName + '.' + family_attribute_name
+    return family_attribute_name
+
+
+def get_family_attribute(session, resource, attribute):
+    return session.GetAttributeValue(resource.Name, _family_attribute_name(resource, attribute))
+
+
+def set_family_attribute(session, resource, attribute, value):
+    session.SetAttributeValue(resource.Name, _family_attribute_name(resource, attribute), value)
+
+
 def enqueue_keep_alive(context):
     my_api = CloudShellSessionContext(context).get_api()
     reservation_id = context.reservation.reservation_id
