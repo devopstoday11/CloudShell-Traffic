@@ -53,13 +53,6 @@ def get_reservation_resources(session, reservation_id, *models):
     return models_resources
 
 
-def _family_attribute_name(resource, attribute):
-    family_attribute_name = attribute
-    if resource.ResourceFamilyName.startswith('CS_'):
-        family_attribute_name = resource.ResourceFamilyName + '.' + family_attribute_name
-    return family_attribute_name
-
-
 def get_family_attribute(session, resource, attribute):
     return session.GetAttributeValue(resource.Name, _family_attribute_name(resource, attribute))
 
@@ -89,9 +82,16 @@ def write_to_reservation_out(context, message):
     my_api.WriteMessageToReservationOutput(context.reservation.reservation_id, message)
 
 
-def attach_stats_csv(context, logger, view_name, output):
+def attach_stats_csv(context, logger, view_name, output, suffix='csv'):
     quali_api_helper = quali_rest_api_helper.create_quali_api_instance(context, logger)
     quali_api_helper.login()
-    full_file_name = view_name.replace(' ', '_') + '_' + time.ctime().replace(' ', '_') + '.csv'
+    full_file_name = view_name.replace(' ', '_') + '_' + time.ctime().replace(' ', '_') + '.' + suffix
     quali_api_helper.upload_file(context.reservation.reservation_id, file_name=full_file_name, file_stream=output)
     write_to_reservation_out(context, 'Statistics view saved in attached file - ' + full_file_name)
+
+
+def _family_attribute_name(resource, attribute):
+    family_attribute_name = attribute
+    if resource.ResourceFamilyName.startswith('CS_'):
+        family_attribute_name = resource.ResourceFamilyName + '.' + family_attribute_name
+    return family_attribute_name
