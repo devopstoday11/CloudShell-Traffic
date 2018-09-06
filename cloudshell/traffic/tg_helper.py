@@ -88,6 +88,7 @@ def attach_stats_csv(context, logger, view_name, output, suffix='csv'):
     full_file_name = view_name.replace(' ', '_') + '_' + time.ctime().replace(' ', '_') + '.' + suffix
     quali_api_helper.upload_file(context.reservation.reservation_id, file_name=full_file_name, file_stream=output)
     write_to_reservation_out(context, 'Statistics view saved in attached file - ' + full_file_name)
+    return full_file_name
 
 
 def _family_attribute_name(resource, attribute):
