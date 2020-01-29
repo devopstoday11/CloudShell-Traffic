@@ -11,10 +11,10 @@ class CMTSDriver(HealthCheckDriver):
     def cleanup(self):
         self.handler.cleanup()
 
-    def is_mac_exists(self, context, mac_address):
+    def get_mac_state(self, context, mac_address):
         if not mac_address:
             mac_address = get_mac_from_cable_modem(context)
-        return self.handler.is_mac_exists(mac_address)
+        return self.handler.get_mac_state(mac_address)
 
     def get_mac_domain(self, context, mac_address):
         if not mac_address:
@@ -54,11 +54,13 @@ class CMTSHandler(HealthCheckHandler):
         gen_port_channel.cnr_ip_address = cnr
         self.logger.info(gen_port_channel.cnr_ip_address)
 
-    def is_mac_exists(self, mac_address):
+    def get_mac_state(self, mac_address):
         self.cmts.get_cable_modems(mac_address)
         cable_modem = self.cmts.cable_modems.get(mac_address)
         self.logger.debug('mac - {} -> cable modem {}'.format(mac_address, cable_modem))
-        return True if cable_modem else False
+        if cable_modem:
+            return cable_modem.state.name
+        return 'None'
 
     def get_mac_domain(self, mac_address):
         self.cmts.get_cable_modems(mac_address)
