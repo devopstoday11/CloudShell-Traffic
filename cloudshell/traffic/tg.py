@@ -8,6 +8,8 @@ from common import TrafficDriver, TrafficHandler, get_reservation_id
 from quali_rest_api_helper import create_quali_api_instance
 
 
+BYTEBLOWER_CHASSIS_MODEL = 'ByteBlower Chassis Shell 2G'
+BYTEBLOWER_CONTROLLER_MODEL = 'ByteBlower Controller Shell 2G'
 IXIA_CHASSIS_MODEL = 'Ixia Chassis Shell 2G'
 IXNETWORK_CONTROLLER_MODEL = 'IxNetwork Controller Shell 2G'
 
@@ -46,7 +48,7 @@ class TgControllerDriver(TrafficDriver):
         self.handler.stop_protocols()
 
     def start_traffic(self, context, blocking):
-        self.handler.start_traffic(blocking)
+        self.handler.start_traffic(context, blocking)
         return 'traffic started in {} mode'.format(blocking)
 
     def stop_traffic(self, context):

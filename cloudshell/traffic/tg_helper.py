@@ -49,11 +49,29 @@ def get_reservation_resources(session, reservation_id, *models):
     return models_resources
 
 
-def get_family_attribute(context, resource, attribute):
+def get_family_attribute(context, resource_name, attribute):
+    """ Get value of resource attribute.
+
+    Supports 2nd gen shell namespace by pre-fixing family/model namespace.
+
+    :param CloudShellAPISession api:
+    :param str resource_name:
+    :param str attribute: the name of target attribute without prefixed-namespace
+    :return attribute value
+    """
+
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
-    return cs_session.GetAttributeValue(resource.Name, _family_attribute_name(resource, attribute))
+    res_details = cs_session.GetResourceDetails(resource_name)
+    res_model = res_details.ResourceModelName
+    res_family = res_details.ResourceFamilyName
+
+    # check against all 3 possibilities
+    model_attribute = '{}.{}'.format(res_model, attribute)
+    family_attribute = '{}.{}'.format(res_family, attribute)
+    attribute_names = [attribute, model_attribute, family_attribute]
+    return [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Value
 
 
 def set_family_attribute(context, resource, attribute, value):
