@@ -74,11 +74,19 @@ def get_family_attribute(context, resource_name, attribute):
     return [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Value
 
 
-def set_family_attribute(context, resource, attribute, value):
+def set_family_attribute(context, resource_name, attribute, value):
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
-    cs_session.SetAttributeValue(resource.Name, _family_attribute_name(resource, attribute), value)
+    res_details = cs_session.GetResourceDetails(resource_name)
+    res_model = res_details.ResourceModelName
+    res_family = res_details.ResourceFamilyName
+
+    model_attribute = '{}.{}'.format(res_model, attribute)
+    family_attribute = '{}.{}'.format(res_family, attribute)
+    attribute_names = [attribute, model_attribute, family_attribute]
+    actual_attribute = [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Name
+    cs_session.SetAttributeValue(resource_name, actual_attribute, value)
 
 
 def get_address(port_resource):
@@ -87,10 +95,3 @@ def get_address(port_resource):
 
 def is_blocking(blocking):
     return True if blocking.lower() == "true" else False
-
-
-def _family_attribute_name(resource, attribute):
-    family_attribute_name = attribute
-    if resource.ResourceFamilyName.startswith('CS_'):
-        family_attribute_name = resource.ResourceFamilyName + '.' + family_attribute_name
-    return family_attribute_name
