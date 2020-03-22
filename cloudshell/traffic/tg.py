@@ -11,7 +11,12 @@ from quali_rest_api_helper import create_quali_api_instance
 BYTEBLOWER_CHASSIS_MODEL = 'ByteBlower Chassis Shell 2G'
 BYTEBLOWER_CONTROLLER_MODEL = 'ByteBlower Controller Shell 2G'
 IXIA_CHASSIS_MODEL = 'Ixia Chassis Shell 2G'
+IXLOAD_CONTROLLER_MODEL = 'IxLoad Controller Shell 2G'
 IXNETWORK_CONTROLLER_MODEL = 'IxNetwork Controller Shell 2G'
+STC_CHASSIS_MODEL = 'STC Chassis Shell 2G'
+STC_CONTROLLER_MODEL = 'STC Controller Shell 2G'
+XENA_CHASSIS_MODEL = 'Xena Chassis Shell 2G'
+XENA_CONTROLLER_MODEL = 'Xena Controller Shell 2G'
 
 
 class TgChassisDriver(TrafficDriver):
