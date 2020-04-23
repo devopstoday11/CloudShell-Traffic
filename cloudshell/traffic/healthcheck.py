@@ -1,9 +1,10 @@
 
 import logging
 import time
+import json
 
 from cloudshell.workflow.orchestration.sandbox import Sandbox
-from cloudshell.api.cloudshell_api import CloudShellAPISession
+from cloudshell.api.cloudshell_api import CloudShellAPISession, InputNameValue
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 
@@ -132,18 +133,6 @@ def get_services_from_reservation(context, service_name):
     return [s for s in services if s.ServiceName == service_name]
 
 
-def get_mac_from_cable_modem(context):
-    """
-    :param ResourceCommandContext context: resource command context
-    """
-    cm_resource = get_resources_from_reservation(context, 'Cable_Modem')[0]
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
-    cm_resource_details = cs_session.GetResourceDetails(cm_resource.Name)
-    return [a.Value for a in cm_resource_details.ResourceAttributes if a.Name == 'Cable_Modem.mac_address'][0]
-
-
 def get_connection_details_from_resource(context, resource_model, requested_details=['User', 'Password']):
     """
     :param ResourceCommandContext context: resource command context
@@ -186,6 +175,28 @@ def get_mac_from_cable_modem(context):
     cm_resource = [r for r in resources if r.ResourceModelName == 'Cable_Modem'][0]
     cm_resource_details = cs_session.GetResourceDetails(cm_resource.Name)
     return [a.Value for a in cm_resource_details.ResourceAttributes if a.Name == 'Cable_Modem.mac_address'][0]
+
+
+def get_health_check_from_service(context, model, address_param, address):
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    service = get_services_from_reservation(context, model)[0]
+    result = cs_session.ExecuteCommand(get_reservation_id(context), service.Alias, 'Service',
+                                       'health_check',
+                                       [InputNameValue(address_param, address)])
+    return json.loads(result.Output)['report']
+
+
+def get_health_check_from_resource(context, model, address_param, address):
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    resource = get_resources_from_reservation(context, model)[0]
+    result = cs_session.ExecuteCommand(get_reservation_id(context), resource.Name, 'Resource',
+                                       'health_check',
+                                       [InputNameValue(address_param, address)])
+    return json.loads(result.Output)['report']
 
 
 class HealthCheckDriver(ResourceDriverInterface):

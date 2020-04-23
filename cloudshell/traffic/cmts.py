@@ -16,6 +16,11 @@ class CMTSDriver(HealthCheckDriver):
             mac_address = get_mac_from_cable_modem(context)
         return self.handler.get_mac_state(mac_address)
 
+    def get_mac_attributes(self, context, mac_address):
+        if not mac_address:
+            mac_address = get_mac_from_cable_modem(context)
+        return self.handler.get_mac_attributes(mac_address)
+
     def get_mac_domain(self, context, mac_address):
         if not mac_address:
             mac_address = get_mac_from_cable_modem(context)
@@ -27,7 +32,11 @@ class CMTSHandler(HealthCheckHandler):
     def initialize(self, context, logger, resource, CmtsClass):
         super(CMTSHandler, self).initialize(context, logger, resource)
         self.cmts = CmtsClass(hostname=self.address, username=self.user, password=self.password)
-        self.cmts.get_inventory()
+        try:
+            self.cmts.get_inventory()
+        except EOFError as _:
+            raise EOFError('Failed to connect to CMTS {} with credentials {}/{}'.
+                           format(self.address, self.user, self.password))
 
     def cleanup(self):
         if self.cmts:
@@ -62,8 +71,18 @@ class CMTSHandler(HealthCheckHandler):
             return cable_modem.state.name
         return 'None'
 
-    def get_mac_domain(self, mac_address):
+    def get_mac_attributes(self, mac_address):
         self.cmts.get_cable_modems(mac_address)
-        mac_domain = self.cmts.cable_modems.get(mac_address).mac_domain
+        cable_modem = self.cmts.cable_modems.get(mac_address)
+        self.logger.debug('mac - {} -> cable modem {}'.format(mac_address, cable_modem))
+        if cable_modem:
+            return cable_modem.attributes
+        return 'None'
+
+    def get_mac_domain(self, mac_address):
+        mac_domain = None
+        self.cmts.get_cable_modems(mac_address)
+        if self.cmts.cable_modems.get(mac_address):
+            mac_domain = self.cmts.cable_modems.get(mac_address).mac_domain
         self.logger.debug('mac - {} -> mac domain {}'.format(mac_address, mac_domain))
-        return mac_domain.name
+        return mac_domain.name if mac_domain else ''
