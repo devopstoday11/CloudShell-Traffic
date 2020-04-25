@@ -33,7 +33,7 @@ class CMTSHandler(HealthCheckHandler):
         super(CMTSHandler, self).initialize(context, logger, resource)
         self.cmts = CmtsClass(hostname=self.address, username=self.user, password=self.password)
         try:
-            self.cmts.get_inventory()
+            self.cmts.connect()
         except EOFError as _:
             raise EOFError('Failed to connect to CMTS {} with credentials {}/{}'.
                            format(self.address, self.user, self.password))
@@ -43,6 +43,7 @@ class CMTSHandler(HealthCheckHandler):
             self.cmts.disconnect()
 
     def load_inventory(self, context, gen_chassis, GenericPortChannel):
+        self.cmts.get_inventory()
         self.resource.add_sub_resource('C0', gen_chassis)
         for module in self.cmts.modules.values():
             self.logger.debug('Loading module {}'.format(module.name))
@@ -83,6 +84,7 @@ class CMTSHandler(HealthCheckHandler):
         mac_domain = None
         self.cmts.get_cable_modems(mac_address)
         if self.cmts.cable_modems.get(mac_address):
+            self.cmts.get_inventory()
             mac_domain = self.cmts.cable_modems.get(mac_address).mac_domain
         self.logger.debug('mac - {} -> mac domain {}'.format(mac_address, mac_domain))
         return mac_domain.name if mac_domain else ''
