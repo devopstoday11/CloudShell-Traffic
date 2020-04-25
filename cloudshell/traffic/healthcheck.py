@@ -185,7 +185,15 @@ def get_health_check_from_service(context, model, address_param, address):
     result = cs_session.ExecuteCommand(get_reservation_id(context), service.Alias, 'Service',
                                        'health_check',
                                        [InputNameValue(address_param, address)])
-    return json.loads(result.Output)['report']
+    return json.loads(result.Output)
+
+
+def get_cmts_model(context):
+    if get_resources_from_reservation(context, CISCO_CMTS_MODEL):
+        return CISCO_CMTS_MODEL
+    if get_resources_from_reservation(context, CASA_CMTS_MODEL):
+        return CASA_CMTS_MODEL
+    return ARRIS_CMTS_MODEL
 
 
 def get_health_check_from_resource(context, model, address_param, address):
@@ -196,7 +204,7 @@ def get_health_check_from_resource(context, model, address_param, address):
     result = cs_session.ExecuteCommand(get_reservation_id(context), resource.Name, 'Resource',
                                        'health_check',
                                        [InputNameValue(address_param, address)])
-    return json.loads(result.Output)['report']
+    return json.loads(result.Output)
 
 
 class HealthCheckDriver(ResourceDriverInterface):
