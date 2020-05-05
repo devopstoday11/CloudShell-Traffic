@@ -1,5 +1,5 @@
 
-from rest_json_client import RestJsonClient
+from .rest_json_client import RestJsonClient
 
 
 def create_quali_api_instance(context, logger):

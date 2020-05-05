@@ -1,5 +1,5 @@
 
-from healthcheck import HealthCheckDriver, HealthCheckHandler, get_mac_from_cable_modem
+from .healthcheck import HealthCheckDriver, HealthCheckHandler, get_mac_from_cable_modem
 
 
 def get_mac_domain_from_sub_resource():

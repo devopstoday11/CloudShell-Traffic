@@ -1,8 +1,8 @@
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 
-from common import (TrafficDriver, TrafficHandler, get_resources_from_reservation, get_reservation_id,
-                    get_connection_details_from_resource)
+from .common import (TrafficDriver, TrafficHandler, get_resources_from_reservation, get_reservation_id,
+                     get_connection_details_from_resource)
 
 ACS_MODEL = 'Acs'
 ACS_STATUS_MODEL = 'Acs_Status'

@@ -10,7 +10,7 @@ from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionCo
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 
-from tg_helper import get_qs_logger
+from .tg_helper import get_qs_logger
 
 
 def set_live_status(context, report):

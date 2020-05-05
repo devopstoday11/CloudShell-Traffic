@@ -4,8 +4,8 @@ import time
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.shell.core.context_utils import get_resource_name
 
-from common import TrafficDriver, TrafficHandler, get_reservation_id
-from quali_rest_api_helper import create_quali_api_instance
+from .common import TrafficDriver, TrafficHandler, get_reservation_id
+from .quali_rest_api_helper import create_quali_api_instance
 
 
 BYTEBLOWER_CHASSIS_MODEL = 'ByteBlower Chassis Shell 2G'
