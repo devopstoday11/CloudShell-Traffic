@@ -1,13 +1,12 @@
+#
+# TODO: Merge with common?
+#
 
-import time
 import re
 import logging
 
-from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
-from cloudshell.shell.core.context_utils import get_resource_name
 from cloudshell.core.logger.qs_logger import get_qs_logger
-
-import quali_rest_api_helper
+from cloudshell.api.cloudshell_api import CloudShellAPISession
 
 
 def get_logger(context):
@@ -53,20 +52,44 @@ def get_reservation_resources(session, reservation_id, *models):
     return models_resources
 
 
-def get_family_attribute(session, resource, attribute):
-    return session.GetAttributeValue(resource.Name, _family_attribute_name(resource, attribute))
+def get_family_attribute(context, resource_name, attribute):
+    """ Get value of resource attribute.
+
+    Supports 2nd gen shell namespace by pre-fixing family/model namespace.
+
+    :param CloudShellAPISession api:
+    :param str resource_name:
+    :param str attribute: the name of target attribute without prefixed-namespace
+    :return attribute value
+    """
+
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    res_details = cs_session.GetResourceDetails(resource_name)
+    res_model = res_details.ResourceModelName
+    res_family = res_details.ResourceFamilyName
+
+    # check against all 3 possibilities
+    model_attribute = '{}.{}'.format(res_model, attribute)
+    family_attribute = '{}.{}'.format(res_family, attribute)
+    attribute_names = [attribute, model_attribute, family_attribute]
+    return [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Value
 
 
-def set_family_attribute(session, resource, attribute, value):
-    session.SetAttributeValue(resource.Name, _family_attribute_name(resource, attribute), value)
+def set_family_attribute(context, resource_name, attribute, value):
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    res_details = cs_session.GetResourceDetails(resource_name)
+    res_model = res_details.ResourceModelName
+    res_family = res_details.ResourceFamilyName
 
-
-def enqueue_keep_alive(context):
-    my_api = CloudShellSessionContext(context).get_api()
-    reservation_id = context.reservation.reservation_id
-    resource_name = get_resource_name(context=context)
-    my_api.EnqueueCommand(reservationId=reservation_id, targetName=resource_name, commandName="keep_alive",
-                          targetType="Service")
+    model_attribute = '{}.{}'.format(res_model, attribute)
+    family_attribute = '{}.{}'.format(res_family, attribute)
+    attribute_names = [attribute, model_attribute, family_attribute]
+    actual_attribute = [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Name
+    cs_session.SetAttributeValue(resource_name, actual_attribute, value)
 
 
 def get_address(port_resource):
@@ -75,24 +98,3 @@ def get_address(port_resource):
 
 def is_blocking(blocking):
     return True if blocking.lower() == "true" else False
-
-
-def write_to_reservation_out(context, message):
-    my_api = CloudShellSessionContext(context).get_api()
-    my_api.WriteMessageToReservationOutput(context.reservation.reservation_id, message)
-
-
-def attach_stats_csv(context, logger, view_name, output, suffix='csv'):
-    quali_api_helper = quali_rest_api_helper.create_quali_api_instance(context, logger)
-    quali_api_helper.login()
-    full_file_name = view_name.replace(' ', '_') + '_' + time.ctime().replace(' ', '_') + '.' + suffix
-    quali_api_helper.upload_file(context.reservation.reservation_id, file_name=full_file_name, file_stream=output)
-    write_to_reservation_out(context, 'Statistics view saved in attached file - ' + full_file_name)
-    return full_file_name
-
-
-def _family_attribute_name(resource, attribute):
-    family_attribute_name = attribute
-    if resource.ResourceFamilyName.startswith('CS_'):
-        family_attribute_name = resource.ResourceFamilyName + '.' + family_attribute_name
-    return family_attribute_name

@@ -14,3 +14,7 @@ dist/
 .pydevproject
 .settings
 .cache
+
+.idea
+venv*
+customer_build

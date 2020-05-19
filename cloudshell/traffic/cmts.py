@@ -67,17 +67,19 @@ class CMTSHandler(HealthCheckHandler):
     def get_mac_state(self, mac_address):
         self.cmts.get_cable_modems(mac_address)
         cable_modem = self.cmts.cable_modems.get(mac_address)
-        self.logger.debug('mac - {} -> cable modem {}'.format(mac_address, cable_modem))
         if cable_modem:
+            self.logger.debug('mac - {} -> cable modem state {}'.format(mac_address, cable_modem.state.name))
             return cable_modem.state.name
+        self.logger.debug('no CM for mac - {}'.format(mac_address))
         return 'None'
 
     def get_mac_attributes(self, mac_address):
         self.cmts.get_cable_modems(mac_address)
         cable_modem = self.cmts.cable_modems.get(mac_address)
-        self.logger.debug('mac - {} -> cable modem {}'.format(mac_address, cable_modem))
         if cable_modem:
+            self.logger.debug('mac - {} -> cable modem attributes {}'.format(mac_address, cable_modem.attributes))
             return cable_modem.attributes
+        self.logger.debug('no CM for mac - {}'.format(mac_address))
         return 'None'
 
     def get_mac_domain(self, mac_address):

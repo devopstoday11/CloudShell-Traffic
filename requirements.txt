@@ -1,4 +1,6 @@
+cloudshell-orch-core>=2.0.0.0,<2.2.0.0
+cloudshell-shell-core>=4,<5
+cloudshell-automation-api>=9.1,<9.2
+
 requests
 PyYAML
-cloudshell-shell-core
-cloudshell-automation-api>=9.1,<9.2
