@@ -3,4 +3,3 @@ cloudshell-shell-core>=4,<5
 cloudshell-automation-api>=9.1,<9.2
 
 requests
-PyYAML
