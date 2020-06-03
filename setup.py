@@ -3,8 +3,6 @@
 
 from setuptools import setup, find_packages
 
-from cloudshell.traffic import __version__
-
 with open('requirements.txt') as f_required:
     required = f_required.read().splitlines()
 
@@ -16,7 +14,7 @@ setup(
     packages=find_packages(),
     install_requires=required,
     test_suite='cloudshell.traffic.test',
-    version=__version__,
+    version='3.0.6',
     description='QualiSystems Python base class and utilities for traffic generators shells (chassis and controller)',
     include_package_data=True,
     license='Apache Software License',

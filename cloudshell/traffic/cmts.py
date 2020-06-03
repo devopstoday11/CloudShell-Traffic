@@ -1,9 +1,24 @@
 
+from common import get_resources_from_reservation
 from healthcheck import HealthCheckDriver, HealthCheckHandler, get_mac_from_cable_modem
+
+
+CMTS_MODEL = 'Cmts'
+CISCO_CMTS_MODEL = 'Cisco_CMTS_Shell'
+CASA_CMTS_MODEL = 'Casa_CMTS_Shell'
+ARRIS_CMTS_MODEL = 'Arris_CMTS_Shell'
 
 
 def get_mac_domain_from_sub_resource():
     return None
+
+
+def get_cmts_model(context):
+    if get_resources_from_reservation(context, CISCO_CMTS_MODEL):
+        return CISCO_CMTS_MODEL
+    if get_resources_from_reservation(context, CASA_CMTS_MODEL):
+        return CASA_CMTS_MODEL
+    return ARRIS_CMTS_MODEL
 
 
 class CMTSDriver(HealthCheckDriver):

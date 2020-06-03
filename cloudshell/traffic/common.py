@@ -170,8 +170,7 @@ class TrafficHandler(object):
 
     def get_connection_details(self, context):
         self.address = context.resource.address
-        if self.address in ['', 'na']:
-            self.address = self.resource.address
+        self.logger.debug('Address - {}'.format(self.address))
         self.user = self.resource.user
         self.logger.debug('User - {}'.format(self.user))
         self.logger.debug('Encripted password - {}'.format(self.resource.password))
