@@ -1,5 +1,5 @@
 
-from common import get_resources_from_reservation
+from common import get_resources_from_reservation, get_reservation_id
 from healthcheck import HealthCheckDriver, HealthCheckHandler, get_mac_from_cable_modem
 
 
