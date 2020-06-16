@@ -2,8 +2,9 @@ import json
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession, InputNameValue
 
-from common import (TrafficDriver, TrafficHandler, get_resources_from_reservation, get_reservation_id,
-                    get_connection_details_from_resource, get_services_from_reservation)
+from tg_helper import (get_resources_from_reservation, get_connection_details_from_resource,
+                       get_services_from_reservation)
+from common import TrafficDriver, TrafficHandler, get_reservation_id
 
 ACS_MODEL = 'Acs'
 ACS_STATUS_MODEL = 'Acs_Status'
@@ -43,26 +44,20 @@ def get_mac_from_cable_modem(context):
     return [a.Value for a in cm_resource_details.ResourceAttributes if a.Name == 'Cable_Modem.mac_address'][0]
 
 
-def get_health_check_from_resource(context, model, address_param, address):
+def get_health_check(context, model, command_name='health_check', **params):
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
     resource = get_resources_from_reservation(context, model)[0]
-    result = cs_session.ExecuteCommand(get_reservation_id(context), resource.Name, 'Resource',
-                                       'health_check',
-                                       [InputNameValue(address_param, address)])
-    return json.loads(result.Output)
-
-
-def get_health_check_from_service(context, model, address_param, address):
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
-    service = get_services_from_reservation(context, model)[0]
-    result = cs_session.ExecuteCommand(get_reservation_id(context), service.Alias, 'Service',
-                                       'health_check',
-                                       [InputNameValue(address_param, address)])
-    return json.loads(result.Output)
+    input_params = [InputNameValue(k, v) for k, v in params.items()]
+    if resource:
+        result = cs_session.ExecuteCommand(get_reservation_id(context), resource.Name, 'Resource',
+                                           command_name, input_params)
+    else:
+        service = get_services_from_reservation(context, model)[0]
+        result = cs_session.ExecuteCommand(get_reservation_id(context), service.Alias, 'Service',
+                                           command_name, input_params)
+    return json.loads(result.Output) if result.Output.lower() != 'none' else None
 
 
 class HealthCheckDriver(TrafficDriver):
