@@ -14,7 +14,7 @@ setup(
     packages=find_packages(),
     install_requires=required,
     test_suite='cloudshell.traffic.test',
-    version='3.0.6',
+    version='3.0.7',
     description='QualiSystems Python base class and utilities for traffic generators shells (chassis and controller)',
     include_package_data=True,
     license='Apache Software License',
