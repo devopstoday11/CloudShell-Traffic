@@ -1,5 +1,7 @@
 
-from common import get_resources_from_reservation, get_reservation_id
+import json
+
+from tg_helper import get_resources_from_reservation
 from healthcheck import HealthCheckDriver, HealthCheckHandler, get_mac_from_cable_modem
 
 
@@ -27,19 +29,16 @@ class CMTSDriver(HealthCheckDriver):
         self.handler.cleanup()
 
     def get_mac_state(self, context, mac_address):
-        if not mac_address:
-            mac_address = get_mac_from_cable_modem(context)
         return self.handler.get_mac_state(mac_address)
 
     def get_mac_attributes(self, context, mac_address):
-        if not mac_address:
-            mac_address = get_mac_from_cable_modem(context)
         return self.handler.get_mac_attributes(mac_address)
 
     def get_mac_domain(self, context, mac_address):
-        if not mac_address:
-            mac_address = get_mac_from_cable_modem(context)
         return self.handler.get_mac_domain(mac_address)
+
+    def health_check(self, context, mac_address, *states):
+        return self.handler.health_check(mac_address, *states)
 
 
 class CMTSHandler(HealthCheckHandler):
@@ -105,3 +104,20 @@ class CMTSHandler(HealthCheckHandler):
             mac_domain = self.cmts.cable_modems.get(mac_address).mac_domain
         self.logger.debug('mac - {} -> mac domain {}'.format(mac_address, mac_domain))
         return mac_domain.name if mac_domain else ''
+
+    def health_check(self, mac_address, *states):
+        report = super(CMTSHandler, self).health_check()
+        report['name'] = self.resource.name
+        self.cmts.get_cable_modems(mac_address)
+        try:
+            mac = self.cmts.cable_modems[mac_address]
+            self.logger.debug('attributes {}'.format(mac.attributes))
+            report['result'] = mac.state in states
+            report['status'] = mac.state.name
+            report['summary'] = mac.attributes
+            report['log'] = {}
+        except Exception as e:
+            report['result'] = False
+            report['status'] = str(e)
+        self.logger.info('CMTS health check report {}'.format(json.dumps(report, indent=2)))
+        return {'report': report, 'log': ''}
