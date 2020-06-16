@@ -1,9 +1,7 @@
-#
-# TODO: Merge with common?
-#
 
 import re
 import logging
+import time
 
 from cloudshell.logging.qs_logger import get_qs_logger
 from cloudshell.api.cloudshell_api import CloudShellAPISession
@@ -34,24 +32,6 @@ def get_reservation_ports(session, reservation_id, model_name='Generic Traffic G
     return reservation_ports
 
 
-def get_reservation_resources(session, reservation_id, *models):
-    """ Get all resources of given models in reservation.
-
-    :param session: CloudShell session
-    :type session: cloudshell.api.cloudshell_api.CloudShellAPISession
-    :param reservation_id: active reservation ID
-    :param models: list of requested models
-    :return: list of all resources of models in reservation
-    """
-
-    models_resources = []
-    reservation = session.GetReservationDetails(reservation_id).ReservationDescription
-    for resource in reservation.Resources:
-        if resource.ResourceModelName in models:
-            models_resources.append(resource)
-    return models_resources
-
-
 def get_family_attribute(context, resource_name, attribute):
     """ Get value of resource attribute.
 
@@ -78,6 +58,16 @@ def get_family_attribute(context, resource_name, attribute):
 
 
 def set_family_attribute(context, resource_name, attribute, value):
+    """ Set value of resource attribute.
+
+    Supports 2nd gen shell namespace by pre-fixing family/model namespace.
+
+    :param CloudShellAPISession api:
+    :param str resource_name:
+    :param str attribute: the name of target attribute without prefixed-namespace
+    :param str value: attribute value
+    """
+
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
@@ -98,3 +88,133 @@ def get_address(port_resource):
 
 def is_blocking(blocking):
     return True if blocking.lower() == "true" else False
+
+
+def set_live_status(context, report):
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    if report['result']:
+        liveStatusName = 'Online'
+    else:
+        liveStatusName = 'Error'
+    cs_session.SetServiceLiveStatus(reservationId=get_reservation_id(context),
+                                    serviceAlias=context.resource.name,
+                                    liveStatusName=liveStatusName,
+                                    additionalInfo='tool_tip')
+
+
+def get_reservation_id(context):
+    """
+    :param ResourceCommandContext context:
+    """
+    try:
+        return context.reservation.reservation_id
+    except Exception as _:
+        return context.reservation.id
+
+
+def add_resource_to_db(context, resource_model, resource_full_name, resource_address='na', **attributes):
+    """
+    :param ResourceCommandContext context:
+    """
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+
+    resources_w_requested_name = cs_session.FindResources(resourceFullName=resource_full_name).Resources
+    if len(resources_w_requested_name) > 0:
+        return
+
+    cs_session.CreateResource(resourceFamily='CS_GenericResource',
+                               resourceModel=resource_model,
+                               resourceName=resource_full_name,
+                               resourceAddress=resource_address)
+    if context.reservation.domain != 'Global':
+        cs_session.AddResourcesToDomain(domainName=context.reservation.domain,
+                                        resourcesNames=[resource_full_name])
+    for attribute, value in attributes.items():
+        set_family_attribute(context, resource_full_name, attribute, value)
+
+
+def add_resources_to_reservation(context, *resources_full_path):
+    """
+    :param ResourceCommandContext context:
+    """
+    reservation_id = get_reservation_id(context)
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    cs_session.AddResourcesToReservation(reservationId=reservation_id, resourcesFullPath=list(resources_full_path),
+                                         shared=True)
+    all_resources = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Resources
+    new_resources = [r for r in all_resources if r.Name in resources_full_path]
+    while len(new_resources) != len(resources_full_path):
+        time.sleep(1)
+        all_resources = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Resources
+        new_resources = [r for r in all_resources if r.Name in resources_full_path]
+    return new_resources
+
+
+def add_service_to_reservation(context, service_name, alias=None, attributes=[]):
+    """
+    :param ResourceCommandContext context:
+    """
+    if not alias:
+        alias = service_name
+    reservation_id = get_reservation_id(context)
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    cs_session.AddServiceToReservation(reservationId=reservation_id,
+                                       serviceName=service_name, alias=alias,
+                                       attributes=attributes)
+    all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
+    new_service = [s for s in all_services if s.ServiceName == service_name]
+    while not new_service:
+        time.sleep(1)
+        all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
+        new_service = [s for s in all_services if s.ServiceName == service_name]
+    return new_service[0]
+
+
+def get_resources_from_reservation(context, *resource_models):
+    """
+    :param ResourceCommandContext context: resource command context
+    :param resource_models: list of resource models to retrieve
+    """
+    reservation_id = get_reservation_id(context)
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    resources = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Resources
+    return [r for r in resources if r.ResourceModelName in resource_models]
+
+
+def get_services_from_reservation(context, service_name):
+    """
+    :param ResourceCommandContext context: resource command context
+    """
+    reservation_id = get_reservation_id(context)
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
+    return [s for s in services if s.ServiceName == service_name]
+
+
+def get_connection_details_from_resource(context, resource_model, requested_details=['User', 'Password']):
+    """
+    :param ResourceCommandContext context: resource command context
+    """
+    cm_resource = get_resources_from_reservation(context, resource_model)[0]
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    resource_details = cs_session.GetResourceDetails(cm_resource.Name)
+    details = {}
+    details['Address'] = resource_details.Address
+    for requested_detail in requested_details:
+        attribute_name = '{}.{}'.format(resource_model, requested_detail)
+        details[requested_detail] = [a.Value for a in resource_details.ResourceAttributes if a.Name == attribute_name][0]
+    return details
