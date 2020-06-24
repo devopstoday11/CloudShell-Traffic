@@ -1,8 +1,8 @@
 
 import json
 
-from .tg_helper import get_resources_from_reservation
-from .healthcheck import HealthCheckDriver, HealthCheckHandler, get_mac_from_cable_modem
+from .helpers import get_resources_from_reservation, get_reservation_description, get_reservation_id
+from .healthcheck import HealthCheckDriver, HealthCheckHandler
 
 
 CMTS_MODEL = 'Cmts'
@@ -38,7 +38,7 @@ class CMTSDriver(HealthCheckDriver):
         return self.handler.get_mac_domain(mac_address)
 
     def health_check(self, context, mac_address, *states):
-        return self.handler.health_check(mac_address, *states)
+        return self.handler.health_check(context, mac_address, *states)
 
 
 class CMTSHandler(HealthCheckHandler):
@@ -105,7 +105,7 @@ class CMTSHandler(HealthCheckHandler):
         self.logger.debug('mac - {} -> mac domain {}'.format(mac_address, mac_domain))
         return mac_domain.name if mac_domain else ''
 
-    def health_check(self, mac_address, *states):
+    def health_check(self, context, mac_address, *states):
         report = super(CMTSHandler, self).health_check()
         report['name'] = self.resource.name
         self.cmts.get_cable_modems(mac_address)
@@ -120,4 +120,23 @@ class CMTSHandler(HealthCheckHandler):
             report['result'] = False
             report['status'] = str(e)
         self.logger.info('CMTS health check report {}'.format(json.dumps(report, indent=2)))
-        return {'report': report, 'log': ''}
+        health_check = {'report': report, 'log': ''}
+        self.logger.info(json.dumps(health_check, indent=2))
+
+        description = get_reservation_description(context)
+        resource_connectors = [c for c in description.Connectors if context.resource.name in [c.Source, c.Target]]
+        for connector in resource_connectors:
+            other_end_name = connector.Target if connector.Source == context.resource.name else c.Source
+            other_end_services = [s for s in description.Services if s.Alias == other_end_name and s.ServiceName == 'Healthcheck_Status']
+            if other_end_services:
+                health_check_service = other_end_services[0]
+                break
+
+        from cloudshell.api.cloudshell_api import CloudShellAPISession, InputNameValue
+        cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                          token_id=context.connectivity.admin_auth_token,
+                                          domain=context.reservation.domain)
+        cs_session.ExecuteCommand(get_reservation_id(context), health_check_service.Alias, 'Service',
+                                  'set_live_status',
+                                  [InputNameValue('status', 'Online' if report['result'] else 'Error')])
+        return health_check

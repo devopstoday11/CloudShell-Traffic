@@ -1,4 +1,8 @@
 
+repo=localhost
+user=pypiadmin
+password=pypiadmin
+
 .PHONY: build
 build:
 	rm -rf dist/*
@@ -6,4 +10,4 @@ build:
 
 upload:
 	make build
-	twine upload --repository-url http://localhost:8036 --user pypiadmin --password pypiadmin dist/*
+	twine upload --repository-url http://$(repo):8036 --user $(user) --password $(password) dist/*

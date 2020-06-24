@@ -1,48 +1,29 @@
 
 import re
-import logging
 import time
+from typing import Dict, List, Optional
 
-from cloudshell.logging.qs_logger import get_qs_logger
+from cloudshell.api.cloudshell_api import (ReservationDescriptionInfo, ReservedResourceInfo, ServiceInstance,
+                                           SetConnectorRequest)
+from cloudshell.shell.core.driver_context import ResourceCommandContext
+
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 
 
-def get_logger(context):
-    """
-
-    :return: logger according to cloudshell standards.
-    """
-
-    logger = get_qs_logger(log_group='traffic_shells', log_file_prefix=context.resource.name)
-    logger.setLevel(logging.DEBUG)
-    return logger
+def get_reservation_description(context: ResourceCommandContext) -> ReservationDescriptionInfo:
+    """ Get reserservation description. """
+    reservation_id = get_reservation_id(context)
+    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
+                                      token_id=context.connectivity.admin_auth_token,
+                                      domain=context.reservation.domain)
+    return cs_session.GetReservationDetails(reservation_id).ReservationDescription
 
 
-def get_reservation_ports(session, reservation_id, model_name='Generic Traffic Generator Port'):
-    """ Get all Generic Traffic Generator Port in reservation.
-
-    :return: list of all Generic Traffic Generator Port resource objects in reservation
-    """
-
-    reservation_ports = []
-    reservation = session.GetReservationDetails(reservation_id).ReservationDescription
-    for resource in reservation.Resources:
-        if resource.ResourceModelName == model_name:
-            reservation_ports.append(resource)
-    return reservation_ports
-
-
-def get_family_attribute(context, resource_name, attribute):
+def get_family_attribute(context: ResourceCommandContext, resource_name: str, attribute: str) -> str:
     """ Get value of resource attribute.
 
     Supports 2nd gen shell namespace by pre-fixing family/model namespace.
-
-    :param CloudShellAPISession api:
-    :param str resource_name:
-    :param str attribute: the name of target attribute without prefixed-namespace
-    :return attribute value
     """
-
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
@@ -57,15 +38,10 @@ def get_family_attribute(context, resource_name, attribute):
     return [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Value
 
 
-def set_family_attribute(context, resource_name, attribute, value):
+def set_family_attribute(context: ResourceCommandContext, resource_name: str, attribute: str, value: str):
     """ Set value of resource attribute.
 
     Supports 2nd gen shell namespace by pre-fixing family/model namespace.
-
-    :param CloudShellAPISession api:
-    :param str resource_name:
-    :param str attribute: the name of target attribute without prefixed-namespace
-    :param str value: attribute value
     """
 
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
@@ -90,34 +66,15 @@ def is_blocking(blocking):
     return True if blocking.lower() == "true" else False
 
 
-def set_live_status(context, report):
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
-    if report['result']:
-        liveStatusName = 'Online'
-    else:
-        liveStatusName = 'Error'
-    cs_session.SetServiceLiveStatus(reservationId=get_reservation_id(context),
-                                    serviceAlias=context.resource.name,
-                                    liveStatusName=liveStatusName,
-                                    additionalInfo='tool_tip')
-
-
-def get_reservation_id(context):
-    """
-    :param ResourceCommandContext context:
-    """
+def get_reservation_id(context: ResourceCommandContext) -> str:
     try:
         return context.reservation.reservation_id
     except Exception as _:
         return context.reservation.id
 
 
-def add_resource_to_db(context, resource_model, resource_full_name, resource_address='na', **attributes):
-    """
-    :param ResourceCommandContext context:
-    """
+def add_resource_to_db(context: ResourceCommandContext, resource_model, resource_full_name, resource_address='na',
+                       **attributes):
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
@@ -137,10 +94,7 @@ def add_resource_to_db(context, resource_model, resource_full_name, resource_add
         set_family_attribute(context, resource_full_name, attribute, value)
 
 
-def add_resources_to_reservation(context, *resources_full_path):
-    """
-    :param ResourceCommandContext context:
-    """
+def add_resources_to_reservation(context: ResourceCommandContext, *resources_full_path):
     reservation_id = get_reservation_id(context)
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
@@ -156,10 +110,7 @@ def add_resources_to_reservation(context, *resources_full_path):
     return new_resources
 
 
-def add_service_to_reservation(context, service_name, alias=None, attributes=[]):
-    """
-    :param ResourceCommandContext context:
-    """
+def add_service_to_reservation(context: ResourceCommandContext, service_name, alias=None, attributes=[]):
     if not alias:
         alias = service_name
     reservation_id = get_reservation_id(context)
@@ -178,42 +129,43 @@ def add_service_to_reservation(context, service_name, alias=None, attributes=[])
     return new_service[0]
 
 
-def get_resources_from_reservation(context, *resource_models):
-    """
-    :param ResourceCommandContext context: resource command context
-    :param resource_models: list of resource models to retrieve
-    """
+def add_connector_to_reservation(context: ResourceCommandContext, source_name, target_name, direction='bi', attributes=[]):
     reservation_id = get_reservation_id(context)
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
-    resources = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Resources
+    connector = SetConnectorRequest(source_name, target_name, direction, attributes)
+    cs_session.SetConnectorsInReservation(reservation_id, [connector])
+    all_connectors = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Connectors
+    new_connectors = [c for c in all_connectors if c.Source == source_name and c.Target == target_name]
+    while len(new_connectors) == 0:
+        time.sleep(1)
+        all_connectors = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Connectors
+        new_connectors = [c for c in all_connectors if c.Source == source_name and c.Target == target_name]
+    return connector
+
+
+def get_resources_from_reservation(context: ResourceCommandContext,
+                                   *resource_models: List[str]) -> List[ReservedResourceInfo]:
+    """ Get all resources with the requested resource model names. """
+    resources = get_reservation_description(context).Resources
     return [r for r in resources if r.ResourceModelName in resource_models]
 
 
-def get_services_from_reservation(context, service_name):
-    """
-    :param ResourceCommandContext context: resource command context
-    """
-    reservation_id = get_reservation_id(context)
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
-    services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
-    return [s for s in services if s.ServiceName == service_name]
+def get_services_from_reservation(context: ResourceCommandContext, *service_names: List[str]) -> List[ServiceInstance]:
+    """ Get all services with the requested service names. """
+    services = get_reservation_description(context).Services
+    return [s for s in services if s.ServiceName in service_names]
 
 
-def get_connection_details_from_resource(context, resource_model, requested_details=['User', 'Password']):
-    """
-    :param ResourceCommandContext context: resource command context
-    """
+def get_connection_details_from_resource(context: ResourceCommandContext, resource_model: str,
+                                         requested_details: Optional[List[str]] = ['User', 'Password']) -> Dict[str, str]:
     cm_resource = get_resources_from_reservation(context, resource_model)[0]
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
     resource_details = cs_session.GetResourceDetails(cm_resource.Name)
-    details = {}
-    details['Address'] = resource_details.Address
+    details = {'Address': resource_details.Address}
     for requested_detail in requested_details:
         attribute_name = '{}.{}'.format(resource_model, requested_detail)
         details[requested_detail] = [a.Value for a in resource_details.ResourceAttributes if a.Name == attribute_name][0]

@@ -19,6 +19,20 @@ XENA_CHASSIS_MODEL = 'Xena Chassis Shell 2G'
 XENA_CONTROLLER_MODEL = 'Xena Controller Shell 2G'
 
 
+def get_reservation_ports(session, reservation_id, model_name='Generic Traffic Generator Port'):
+    """ Get all Generic Traffic Generator Port in reservation.
+
+    :return: list of all Generic Traffic Generator Port resource objects in reservation
+    """
+
+    reservation_ports = []
+    reservation = session.GetReservationDetails(reservation_id).ReservationDescription
+    for resource in reservation.Resources:
+        if resource.ResourceModelName == model_name:
+            reservation_ports.append(resource)
+    return reservation_ports
+
+
 class TgChassisDriver(TrafficDriver):
 
     def initialize(self, context, log_group='traffic_shells'):
