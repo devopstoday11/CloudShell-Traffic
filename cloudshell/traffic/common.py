@@ -1,12 +1,13 @@
 
 import logging
 
+from cloudshell.logging.qs_logger import get_qs_logger
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 
-from .tg_helper import get_qs_logger, get_reservation_id
+from .helpers import get_reservation_id
 
 
 class WriteMessageToReservationOutputHandler(logging.Handler):

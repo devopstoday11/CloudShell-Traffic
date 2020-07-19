@@ -110,9 +110,11 @@ def add_resources_to_reservation(context: ResourceCommandContext, *resources_ful
     return new_resources
 
 
-def add_service_to_reservation(context: ResourceCommandContext, service_name, alias=None, attributes=[]):
+def add_service_to_reservation(context: ResourceCommandContext, service_name: str, alias: Optional[str] = None,
+                               attributes: Optional[list] = None) -> ServiceInstance:
     if not alias:
         alias = service_name
+    attributes = attributes or []
     reservation_id = get_reservation_id(context)
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
@@ -121,20 +123,20 @@ def add_service_to_reservation(context: ResourceCommandContext, service_name, al
                                        serviceName=service_name, alias=alias,
                                        attributes=attributes)
     all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
-    new_service = [s for s in all_services if s.ServiceName == service_name]
+    new_service = [s for s in all_services if s.ServiceName == service_name and s.Alias == alias]
     while not new_service:
         time.sleep(1)
         all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
-        new_service = [s for s in all_services if s.ServiceName == service_name]
+        new_service = [s for s in all_services if s.ServiceName == service_name and s.Alias == alias]
     return new_service[0]
 
 
-def add_connector_to_reservation(context: ResourceCommandContext, source_name, target_name, direction='bi', attributes=[]):
+def add_connector_to_reservation(context: ResourceCommandContext, source_name, target_name, direction='bi', alias=''):
     reservation_id = get_reservation_id(context)
     cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                       token_id=context.connectivity.admin_auth_token,
                                       domain=context.reservation.domain)
-    connector = SetConnectorRequest(source_name, target_name, direction, attributes)
+    connector = SetConnectorRequest(source_name, target_name, direction, alias)
     cs_session.SetConnectorsInReservation(reservation_id, [connector])
     all_connectors = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Connectors
     new_connectors = [c for c in all_connectors if c.Source == source_name and c.Target == target_name]
