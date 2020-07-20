@@ -1,4 +1,6 @@
 
+from json import JSONDecodeError
+
 from requests import packages, Session
 
 
@@ -52,7 +54,10 @@ class RestJsonClient(object):
 
     def request_post(self, uri, data):
         response = self._session.post(self._build_url(uri), json=data, verify=False)
-        return self._valid(response).json()
+        try:
+            return self._valid(response).json()
+        except JSONDecodeError as _:
+            return self._valid(response).content
 
     def request_post_files(self, uri, data, files):
         response = self._session.post(self._build_url(uri), data=data, files=files, verify=False)

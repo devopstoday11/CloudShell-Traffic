@@ -8,35 +8,15 @@ from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 
-from .helpers import (get_resources_from_reservation, get_connection_details_from_resource,
-                      get_services_from_reservation, get_family_attribute)
 from .helpers import get_reservation_id, get_reservation_description
-
+from .helpers import get_resources_from_reservation, get_services_from_reservation
 
 ACS_MODEL = 'Acs'
-ACS_STATUS_MODEL = 'Acs_Status'
 CNR_MODEL = 'Cnr'
-CNR_DHCP_STATUS_MODEL = 'Cnr_Dhcp_Status'
-CNR_TFTP_STATUS_MODEL = 'Cnr_Tftp_Status'
-CMTS_STATUS_MODEL = 'Cmts_Status'
+CABLE_MODEM_MODEL = 'Cable_Modem'
 RESOURCE_PROVIDER_MODEL = 'Resource_Provider'
 JIRA_MODEL = 'Jira'
-CABLE_MODEM_MODEL = 'Cable_Modem'
 HEALTHCHECK_STATUS = 'Healthcheck_Status'
-
-
-def get_connection_details_from_cnr(context):
-    """
-    :param ResourceCommandContext context: resource command context
-    """
-    return get_connection_details_from_resource(context, 'Cnr', ['User', 'Password', 'DHCP Log File', 'TFTP Log File'])
-
-
-def get_connection_details_from_acs(context):
-    """
-    :param ResourceCommandContext context: resource command context
-    """
-    return get_connection_details_from_resource(context, 'Acs')
 
 
 def get_mac_from_cable_modem(context):

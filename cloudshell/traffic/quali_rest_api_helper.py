@@ -24,7 +24,7 @@ def create_quali_api_instance(context, logger):
     return instance
 
 
-class QualiAPIHelper(object):
+class QualiAPIHelper:
 
     def __init__(self, server_name, logger, username=None, password=None, token=None, domain=None):
         super(QualiAPIHelper, self).__init__()
@@ -71,6 +71,15 @@ class QualiAPIHelper(object):
         uri = 'API/Package/GetReservationAttachmentsDetails/{0}'.format(reservation_id)
         result = self.__rest_client.request_get(uri)
         return result['AllAttachments']
+
+    def get_attached_file(self, reservation_id, file_name):
+        uri = 'API/Package/GetReservationAttachment/{0}'.format(reservation_id)
+        data = {
+            "reservationId": reservation_id,
+            "FileName": file_name,
+            "SaveToFolderPath": r"lalallala",
+        }
+        return self.__rest_client.request_post(uri, data)
 
     def remove_attached_files(self, reservation_id):
         for file_name in self.get_attached_files(reservation_id):

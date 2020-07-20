@@ -2,11 +2,10 @@
 import json
 from abc import abstractmethod
 
-from cloudshell.shell.core.driver_context import InitCommandContext, ResourceCommandContext
+from cloudshell.shell.core.driver_context import InitCommandContext
 
-from .helpers import get_resources_from_reservation, get_reservation_description, get_reservation_id
 from .healthcheck import HealthCheckDriver, set_health_check_status_live_status
-
+from .helpers import get_resources_from_reservation
 
 CMTS_MODEL = 'Cmts'
 CISCO_CMTS_MODEL = 'Cisco_CMTS_Shell'
