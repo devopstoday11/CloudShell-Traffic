@@ -1,11 +1,12 @@
 
 import re
 import time
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from cloudshell.api.cloudshell_api import (ReservationDescriptionInfo, ReservedResourceInfo, ServiceInstance,
                                            SetConnectorRequest, CloudShellAPISession)
 from cloudshell.shell.core.driver_context import ResourceCommandContext
+from cloudshell.workflow.orchestration.sandbox import Sandbox
 
 
 def get_cs_session(context: ResourceCommandContext) -> CloudShellAPISession:
@@ -15,10 +16,13 @@ def get_cs_session(context: ResourceCommandContext) -> CloudShellAPISession:
                                 domain=context.reservation.domain)
 
 
-def get_reservation_description(context: ResourceCommandContext) -> ReservationDescriptionInfo:
+def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> ReservationDescriptionInfo:
     """ Get reserservation description. """
-    reservation_id = get_reservation_id(context)
-    cs_session = get_cs_session(context)
+    if type(context_or_sandbox) == Sandbox:
+        return context_or_sandbox.automation_api.GetReservationDetails(context_or_sandbox.id).ReservationDescription
+
+    reservation_id = get_reservation_id(context_or_sandbox)
+    cs_session = get_cs_session(context_or_sandbox)
     return cs_session.GetReservationDetails(reservation_id).ReservationDescription
 
 
