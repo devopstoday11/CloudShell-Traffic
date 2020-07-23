@@ -19,6 +19,15 @@ XENA_CHASSIS_MODEL = 'Xena Chassis Shell 2G'
 XENA_CONTROLLER_MODEL = 'Xena Controller Shell 2G'
 
 
+
+def is_blocking(blocking: str) -> bool:
+    """ Returns True if the value of `blocking` parameter represents true else returns false.
+
+    :param blocking: Value of `blocking` parameter.
+    """
+    return True if blocking.lower() == "true" else False
+
+
 def get_reservation_ports(session, reservation_id, model_name='Generic Traffic Generator Port'):
     """ Get all Generic Traffic Generator Port in reservation.
 

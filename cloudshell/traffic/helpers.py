@@ -61,12 +61,12 @@ def set_family_attribute(context: ResourceCommandContext, resource_name: str, at
     cs_session.SetAttributeValue(resource_name, actual_attribute, value)
 
 
-def get_address(port_resource):
-    return re.sub('M|PG[0-9]+\/|P', '', port_resource.FullAddress)
+def get_location(port_resource) -> str:
+    """ Extracts port location in format ip/module/port from port full address.
 
-
-def is_blocking(blocking):
-    return True if blocking.lower() == "true" else False
+    :param port_resource: Port resource object.
+    """
+    return re.sub(r'M|PG[0-9]+\/|P', '', port_resource.FullAddress)
 
 
 def get_reservation_id(context: ResourceCommandContext) -> str:
@@ -152,13 +152,13 @@ def add_connector_to_reservation(context: ResourceCommandContext, source_name, t
 
 
 def get_resources_from_reservation(context: ResourceCommandContext,
-                                   *resource_models: List[str]) -> List[ReservedResourceInfo]:
+                                   *resource_models: str) -> List[ReservedResourceInfo]:
     """ Get all resources with the requested resource model names. """
     resources = get_reservation_description(context).Resources
     return [r for r in resources if r.ResourceModelName in resource_models]
 
 
-def get_services_from_reservation(context: ResourceCommandContext, *service_names: List[str]) -> List[ServiceInstance]:
+def get_services_from_reservation(context: ResourceCommandContext, *service_names: str) -> List[ServiceInstance]:
     """ Get all services with the requested service names. """
     services = get_reservation_description(context).Services
     return [s for s in services if s.ServiceName in service_names]
