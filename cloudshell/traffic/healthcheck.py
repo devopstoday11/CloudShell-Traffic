@@ -8,8 +8,8 @@ from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 
-from .helpers import get_reservation_id, get_reservation_description
-from .helpers import get_resources_from_reservation, get_services_from_reservation
+from .helpers import (get_reservation_id, get_reservation_description, get_resources_from_reservation,
+                      get_services_from_reservation, get_family_attribute)
 
 ACS_MODEL = 'Acs'
 CNR_MODEL = 'Cnr'
@@ -29,7 +29,7 @@ def get_mac_from_cable_modem(context):
     resources = cs_session.GetReservationDetails(get_reservation_id(context)).ReservationDescription.Resources
     cm_resource = [r for r in resources if r.ResourceModelName == 'Cable_Modem'][0]
     cm_resource_details = cs_session.GetResourceDetails(cm_resource.Name)
-    return [a.Value for a in cm_resource_details.ResourceAttributes if a.Name == 'Cable_Modem.mac_address'][0]
+    return [a for a in cm_resource_details.ResourceAttributes if a.Name == 'Cable_Modem.mac_address'][0].Value
 
 
 def get_health_check(context, model, command_name='health_check', **params):
@@ -51,25 +51,23 @@ def get_health_check(context, model, command_name='health_check', **params):
 def set_health_check_status_live_status(context: ResourceCommandContext, status: bool,
                                         status_selector: Optional[str] = 'none') -> None:
 
-    health_check_service = None
+    hc_service = None
     description = get_reservation_description(context)
     resource_connectors = [c for c in description.Connectors if context.resource.name in [c.Source, c.Target]]
     for connector in resource_connectors:
         other_end_name = connector.Target if connector.Source == context.resource.name else connector.Source
-        other_end_services = [s for s in description.Services if
-                              s.Alias == other_end_name and s.ServiceName == HEALTHCHECK_STATUS]
-        if status_selector != 'none':
-            other_end_services = [s for s in other_end_services if
-                                  (s for a in s.Attributes if a.Value == status_selector)]
-        if other_end_services:
-            health_check_service = other_end_services[0]
-            break
+        other_end_service = [s for s in description.Services if s.Alias == other_end_name][0]
+        if other_end_service.ServiceName == HEALTHCHECK_STATUS:
+            hc_service_selector = [a for a in other_end_service.Attributes if a.Name == 'Healthcheck_Status.status_selector'][0].Value
+            if hc_service_selector == status_selector:
+                hc_service = other_end_service
+                break
 
-    if health_check_service:
+    if hc_service:
         cs_session = CloudShellAPISession(host=context.connectivity.server_address,
                                           token_id=context.connectivity.admin_auth_token,
                                           domain=context.reservation.domain)
-        cs_session.ExecuteCommand(get_reservation_id(context), health_check_service.Alias, 'Service',
+        cs_session.ExecuteCommand(get_reservation_id(context), hc_service.Alias, 'Service',
                                   'set_live_status',
                                   [InputNameValue('status', 'Online' if status else 'Error')])
 

@@ -1,4 +1,6 @@
 
+from io import StringIO
+
 from .rest_json_client import RestJsonClient
 
 
@@ -27,7 +29,6 @@ def create_quali_api_instance(context, logger):
 class QualiAPIHelper:
 
     def __init__(self, server_name, logger, username=None, password=None, token=None, domain=None):
-        super(QualiAPIHelper, self).__init__()
         self._server_name = server_name
         if ":" not in self._server_name:
             self._server_name += ":9000"
@@ -37,10 +38,6 @@ class QualiAPIHelper:
         self._password = password
         self._token = token
         self.__rest_client = RestJsonClient(self._server_name, False)
-
-    def upload_file(self, reservation_id, file_stream, file_name):
-        # self.remove_attached_files(reservation_id)
-        self.attach_new_file(reservation_id, file_stream, file_name)
 
     def login(self):
         """
@@ -55,7 +52,8 @@ class QualiAPIHelper:
         result = self.__rest_client.request_put(uri, json_data)
         self.__rest_client.session.headers.update(authorization="Basic {0}".format(result.replace('"', '')))
 
-    def attach_new_file(self, reservation_id, file_data, file_name):
+    def attach_new_file(self, reservation_id: str, file_data: StringIO, file_name: str) -> None:
+        file_data.seek(0)
         file_to_upload = {'QualiPackage': file_data}
         data = {
             "reservationId": reservation_id,

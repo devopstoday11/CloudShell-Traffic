@@ -100,9 +100,7 @@ def add_resource_to_db(context: ResourceCommandContext, resource_model, resource
 
 def add_resources_to_reservation(context: ResourceCommandContext, *resources_full_path):
     reservation_id = get_reservation_id(context)
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
+    cs_session = get_cs_session(context)
     cs_session.AddResourcesToReservation(reservationId=reservation_id, resourcesFullPath=list(resources_full_path),
                                          shared=True)
     all_resources = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Resources
@@ -120,9 +118,7 @@ def add_service_to_reservation(context: ResourceCommandContext, service_name: st
         alias = service_name
     attributes = attributes or []
     reservation_id = get_reservation_id(context)
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
+    cs_session = get_cs_session(context)
     cs_session.AddServiceToReservation(reservationId=reservation_id,
                                        serviceName=service_name, alias=alias,
                                        attributes=attributes)
@@ -137,9 +133,7 @@ def add_service_to_reservation(context: ResourceCommandContext, service_name: st
 
 def add_connector_to_reservation(context: ResourceCommandContext, source_name, target_name, direction='bi', alias=''):
     reservation_id = get_reservation_id(context)
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
+    cs_session = get_cs_session(context)
     connector = SetConnectorRequest(source_name, target_name, direction, alias)
     cs_session.SetConnectorsInReservation(reservation_id, [connector])
     all_connectors = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Connectors
@@ -158,7 +152,8 @@ def get_resources_from_reservation(context: ResourceCommandContext,
     return [r for r in resources if r.ResourceModelName in resource_models]
 
 
-def get_services_from_reservation(context: ResourceCommandContext, *service_names: str) -> List[ServiceInstance]:
+def get_services_from_reservation(context: Union[ResourceCommandContext, Sandbox],
+                                  *service_names: str) -> List[ServiceInstance]:
     """ Get all services with the requested service names. """
     services = get_reservation_description(context).Services
     return [s for s in services if s.ServiceName in service_names]
