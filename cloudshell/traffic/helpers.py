@@ -1,4 +1,5 @@
 
+import logging
 import re
 import time
 from typing import List, Optional, Union
@@ -9,11 +10,36 @@ from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 
 
+class WriteMessageToReservationOutputHandler(logging.Handler):
+
+    def __init__(self, sandbox):
+        self.sandbox = sandbox
+        if type(self.sandbox) == Sandbox:
+            self.session = self.sandbox.automation_api
+            self.sandbox_id = self.sandbox.id
+        else:
+            self.session = get_cs_session(sandbox)
+            self.sandbox_id = get_reservation_id(sandbox)
+        super().__init__()
+
+    def emit(self, record):
+        log_entry = self.format(record)
+        self.session.WriteMessageToReservationOutput(self.sandbox_id, log_entry)
+
+
 def get_cs_session(context: ResourceCommandContext) -> CloudShellAPISession:
     """ Get CS session from context. """
     return CloudShellAPISession(host=context.connectivity.server_address,
                                 token_id=context.connectivity.admin_auth_token,
                                 domain=context.reservation.domain)
+
+
+def get_reservation_id(context: ResourceCommandContext) -> str:
+    """ Return reservation ID from context. """
+    try:
+        return context.reservation.reservation_id
+    except Exception as _:
+        return context.reservation.id
 
 
 def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> ReservationDescriptionInfo:
@@ -67,14 +93,6 @@ def get_location(port_resource) -> str:
     :param port_resource: Port resource object.
     """
     return re.sub(r'M|PG[0-9]+\/|P', '', port_resource.FullAddress)
-
-
-def get_reservation_id(context: ResourceCommandContext) -> str:
-    """ Return reservation ID from context. """
-    try:
-        return context.reservation.reservation_id
-    except Exception as _:
-        return context.reservation.id
 
 
 def add_resource_to_db(context: ResourceCommandContext, resource_model, resource_full_name, resource_address='na',
@@ -136,7 +154,7 @@ def add_connector_to_reservation(context: ResourceCommandContext, source_name, t
     cs_session = get_cs_session(context)
     connector = SetConnectorRequest(source_name, target_name, direction, alias)
     cs_session.SetConnectorsInReservation(reservation_id, [connector])
-    all_connectors = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Connectors
+    all_connectors = get_reservation_description().Connectors
     new_connectors = [c for c in all_connectors if c.Source == source_name and c.Target == target_name]
     while len(new_connectors) == 0:
         time.sleep(1)

@@ -1,4 +1,3 @@
-import json
 import logging
 from typing import Optional
 
@@ -8,48 +7,27 @@ from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 
-from .helpers import (get_reservation_id, get_reservation_description, get_resources_from_reservation,
-                      get_services_from_reservation, get_family_attribute)
+from .helpers import get_reservation_id, get_reservation_description
 
 ACS_MODEL = 'Acs'
-CNR_MODEL = 'Cnr'
 CABLE_MODEM_MODEL = 'Cable_Modem'
-RESOURCE_PROVIDER_MODEL = 'Resource_Provider'
-JIRA_MODEL = 'Jira'
+CPE_MODEL = 'Cpe'
+CNR_MODEL = 'Cnr'
 HEALTHCHECK_STATUS = 'Healthcheck_Status'
-
-
-def get_mac_from_cable_modem(context):
-    """
-    :param ResourceCommandContext context: resource command context
-    """
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
-    resources = cs_session.GetReservationDetails(get_reservation_id(context)).ReservationDescription.Resources
-    cm_resource = [r for r in resources if r.ResourceModelName == 'Cable_Modem'][0]
-    cm_resource_details = cs_session.GetResourceDetails(cm_resource.Name)
-    return [a for a in cm_resource_details.ResourceAttributes if a.Name == 'Cable_Modem.mac_address'][0].Value
-
-
-def get_health_check(context, model, command_name='health_check', **params):
-    cs_session = CloudShellAPISession(host=context.connectivity.server_address,
-                                      token_id=context.connectivity.admin_auth_token,
-                                      domain=context.reservation.domain)
-    resource = get_resources_from_reservation(context, model)[0]
-    input_params = [InputNameValue(k, v) for k, v in params.items()]
-    if resource:
-        result = cs_session.ExecuteCommand(get_reservation_id(context), resource.Name, 'Resource',
-                                           command_name, input_params)
-    else:
-        service = get_services_from_reservation(context, model)[0]
-        result = cs_session.ExecuteCommand(get_reservation_id(context), service.Alias, 'Service',
-                                           command_name, input_params)
-    return json.loads(result.Output) if result.Output.lower() != 'none' else None
+JIRA_MODEL = 'Jira'
+RESOURCE_PROVIDER_MODEL = 'Resource_Provider'
 
 
 def set_health_check_status_live_status(context: ResourceCommandContext, status: bool,
                                         status_selector: Optional[str] = 'none') -> None:
+    """ Set the live status attribute for a healthcheck status service connected to a resource.
+
+
+    :param context: Resource command context.
+    :param status: True will set the live status to Online, False will set the live status to Error.
+    :param status_selector: Selects the requested healthcheck status service in case multiple services are connected
+        to the resource.
+    """
 
     hc_service = None
     description = get_reservation_description(context)
