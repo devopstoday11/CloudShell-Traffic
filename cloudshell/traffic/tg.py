@@ -4,7 +4,8 @@ import time
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.shell.core.context_utils import get_resource_name
 
-from .common import TrafficDriver, TrafficHandler, get_reservation_id
+from .common import TrafficDriver, TrafficHandler
+from .helpers import get_reservation_id
 from .quali_rest_api_helper import create_quali_api_instance
 
 
@@ -110,7 +111,7 @@ def attach_stats_csv(context, logger, view_name, output, suffix='csv'):
     quali_api_helper = create_quali_api_instance(context, logger)
     quali_api_helper.login()
     full_file_name = view_name.replace(' ', '_') + '_' + time.ctime().replace(' ', '_') + '.' + suffix
-    quali_api_helper.upload_file(get_reservation_id(context), file_name=full_file_name, file_stream=output)
+    quali_api_helper.attach_new_file(get_reservation_id(context), file_data=output, file_name=full_file_name)
     write_to_reservation_out(context, 'Statistics view saved in attached file - ' + full_file_name)
     return full_file_name
 

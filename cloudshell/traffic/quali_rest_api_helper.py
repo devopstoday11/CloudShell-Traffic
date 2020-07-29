@@ -53,7 +53,6 @@ class QualiAPIHelper:
         self.__rest_client.session.headers.update(authorization="Basic {0}".format(result.replace('"', '')))
 
     def attach_new_file(self, reservation_id: str, file_data: StringIO, file_name: str) -> None:
-        file_data.seek(0)
         file_to_upload = {'QualiPackage': file_data}
         data = {
             "reservationId": reservation_id,
