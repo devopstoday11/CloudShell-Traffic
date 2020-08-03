@@ -154,7 +154,7 @@ def add_connector_to_reservation(context: ResourceCommandContext, source_name, t
     cs_session = get_cs_session(context)
     connector = SetConnectorRequest(source_name, target_name, direction, alias)
     cs_session.SetConnectorsInReservation(reservation_id, [connector])
-    all_connectors = get_reservation_description().Connectors
+    all_connectors = get_reservation_description(context).Connectors
     new_connectors = [c for c in all_connectors if c.Source == source_name and c.Target == target_name]
     while len(new_connectors) == 0:
         time.sleep(1)
