@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 
 from cloudshell.api.cloudshell_api import (ReservationDescriptionInfo, ReservedResourceInfo, ServiceInstance,
                                            SetConnectorRequest, CloudShellAPISession)
-from cloudshell.shell.core.driver_context import ResourceCommandContext
+from cloudshell.shell.core.driver_context import ResourceCommandContext, ReservationContextDetails
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 
 
@@ -27,37 +27,41 @@ class WriteMessageToReservationOutputHandler(logging.Handler):
         self.session.WriteMessageToReservationOutput(self.sandbox_id, log_entry)
 
 
-def get_cs_session(context: ResourceCommandContext) -> CloudShellAPISession:
+def get_cs_session(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> CloudShellAPISession:
     """ Get CS session from context. """
-    return CloudShellAPISession(host=context.connectivity.server_address,
-                                token_id=context.connectivity.admin_auth_token,
-                                domain=context.reservation.domain)
+    if type(context_or_sandbox) == Sandbox:
+        return context_or_sandbox.automation_api
+    else:
+        return CloudShellAPISession(host=context_or_sandbox.connectivity.server_address,
+                                    token_id=context_or_sandbox.connectivity.admin_auth_token,
+                                    domain=context_or_sandbox.reservation.domain)
 
 
-def get_reservation_id(context: ResourceCommandContext) -> str:
+def get_reservation_id(context_or_sandbox: Union[ReservationContextDetails, ResourceCommandContext, Sandbox]) -> str:
     """ Return reservation ID from context. """
-    try:
-        return context.reservation.reservation_id
-    except Exception as _:
-        return context.reservation.id
+    if type(context_or_sandbox) == Sandbox:
+        return context_or_sandbox.id
+    else:
+        try:
+            return context_or_sandbox.reservation.reservation_id
+        except AttributeError as _:
+            return context_or_sandbox.reservation.id
 
 
 def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> ReservationDescriptionInfo:
     """ Get reserservation description. """
-    if type(context_or_sandbox) == Sandbox:
-        return context_or_sandbox.automation_api.GetReservationDetails(context_or_sandbox.id).ReservationDescription
-
     reservation_id = get_reservation_id(context_or_sandbox)
     cs_session = get_cs_session(context_or_sandbox)
     return cs_session.GetReservationDetails(reservation_id).ReservationDescription
 
 
-def get_family_attribute(context: ResourceCommandContext, resource_name: str, attribute: str) -> str:
+def get_family_attribute(context_or_sandbox: Union[ResourceCommandContext, Sandbox], resource_name: str,
+                         attribute: str) -> str:
     """ Get value of resource attribute.
 
     Supports 2nd gen shell namespace by pre-fixing family/model namespace.
     """
-    cs_session = get_cs_session(context)
+    cs_session = get_cs_session(context_or_sandbox)
     res_details = cs_session.GetResourceDetails(resource_name)
     res_model = res_details.ResourceModelName
     res_family = res_details.ResourceFamilyName
@@ -69,13 +73,14 @@ def get_family_attribute(context: ResourceCommandContext, resource_name: str, at
     return [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Value
 
 
-def set_family_attribute(context: ResourceCommandContext, resource_name: str, attribute: str, value: str) -> None:
+def set_family_attribute(context_or_sandbox: Union[ResourceCommandContext, Sandbox], resource_name: str, attribute: str,
+                         value: str) -> None:
     """ Set value of resource attribute.
 
     Supports 2nd gen shell namespace by pre-fixing family/model namespace.
     """
 
-    cs_session = get_cs_session(context)
+    cs_session = get_cs_session(context_or_sandbox)
     res_details = cs_session.GetResourceDetails(resource_name)
     res_model = res_details.ResourceModelName
     res_family = res_details.ResourceFamilyName
@@ -85,14 +90,6 @@ def set_family_attribute(context: ResourceCommandContext, resource_name: str, at
     attribute_names = [attribute, model_attribute, family_attribute]
     actual_attribute = [attr for attr in res_details.ResourceAttributes if attr.Name in attribute_names][0].Name
     cs_session.SetAttributeValue(resource_name, actual_attribute, value)
-
-
-def get_location(port_resource) -> str:
-    """ Extracts port location in format ip/module/port from port full address.
-
-    :param port_resource: Port resource object.
-    """
-    return re.sub(r'M|PG[0-9]+\/|P', '', port_resource.FullAddress)
 
 
 def add_resource_to_db(context: ResourceCommandContext, resource_model, resource_full_name, resource_address='na',
@@ -163,15 +160,23 @@ def add_connector_to_reservation(context: ResourceCommandContext, source_name, t
     return connector
 
 
-def get_resources_from_reservation(context: ResourceCommandContext,
+def get_resources_from_reservation(context_or_sandbox: Union[ResourceCommandContext, Sandbox],
                                    *resource_models: str) -> List[ReservedResourceInfo]:
     """ Get all resources with the requested resource model names. """
-    resources = get_reservation_description(context).Resources
+    resources = get_reservation_description(context_or_sandbox).Resources
     return [r for r in resources if r.ResourceModelName in resource_models]
 
 
-def get_services_from_reservation(context: Union[ResourceCommandContext, Sandbox],
+def get_services_from_reservation(context_or_sandbox: Union[ResourceCommandContext, Sandbox],
                                   *service_names: str) -> List[ServiceInstance]:
     """ Get all services with the requested service names. """
-    services = get_reservation_description(context).Services
+    services = get_reservation_description(context_or_sandbox).Services
     return [s for s in services if s.ServiceName in service_names]
+
+
+def get_location(port_resource) -> str:
+    """ Extracts port location in format ip/module/port from port full address.
+
+    :param port_resource: Port resource object.
+    """
+    return re.sub(r'M|PG[0-9]+\/|P', '', port_resource.FullAddress)

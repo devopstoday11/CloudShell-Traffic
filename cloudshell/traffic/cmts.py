@@ -68,16 +68,30 @@ class CmtsDriver(HealthCheckDriver):
         if cable_modem:
             self.logger.debug(f'mac - {mac_address} -> cable modem state {cable_modem.state.name}')
             return cable_modem.state.name
-        self.logger.debug(f'no CM for mac - {mac_address}')
+        self.logger.warning(f'no CM for mac - {mac_address}')
         return 'None'
 
     def get_cm_attributes(self, mac_address):
         self.cmts.get_cable_modems(mac_address)
         cable_modem = self.cmts.cable_modems.get(mac_address)
         if cable_modem:
-            self.logger.debug(f'mac - {mac_address} -> cable modem attributes {cable_modem.get_attributes()}')
-            return cable_modem.get_attributes()
-        self.logger.debug(f'no CM for mac - {mac_address}')
+            attributes = cable_modem.get_attributes()
+            self.logger.debug(f'mac - {mac_address} -> cable modem attributes {attributes}')
+            return attributes
+        self.logger.warning(f'no CM for mac - {mac_address}')
+        return 'None'
+
+    def get_cm_cpe(self, mac_address):
+        cable_modem = self.cmts.get_cable_modems(mac_address)[mac_address]
+        if cable_modem:
+            cpe = cable_modem.get_cpe()
+            if cpe:
+                attributes = cpe.get_attributes()
+                self.logger.debug(f'mac - {mac_address} -> CPE attributes {attributes}')
+                return attributes
+            self.logger.info(f'no CPE for mac - {mac_address}')
+            return 'None'
+        self.logger.warning(f'no CM for mac - {mac_address}')
         return 'None'
 
     def get_cm_domain(self, mac_address):
