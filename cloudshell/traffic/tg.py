@@ -1,10 +1,13 @@
 
+import logging
 import time
 
 from cloudshell.api.cloudshell_api import CloudShellAPISession
 from cloudshell.shell.core.context_utils import get_resource_name
+from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
+from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
+from cloudshell.logging.qs_logger import get_qs_logger
 
-from .common import TrafficDriver, TrafficHandler
 from .helpers import get_reservation_id
 from .quali_rest_api_helper import create_quali_api_instance
 
@@ -20,7 +23,6 @@ XENA_CHASSIS_MODEL = 'Xena Chassis Shell 2G'
 XENA_CONTROLLER_MODEL = 'Xena Controller Shell 2G'
 
 
-
 def is_blocking(blocking: str) -> bool:
     """ Returns True if the value of `blocking` parameter represents true else returns false.
 
@@ -34,7 +36,6 @@ def get_reservation_ports(session, reservation_id, model_name='Generic Traffic G
 
     :return: list of all Generic Traffic Generator Port resource objects in reservation
     """
-
     reservation_ports = []
     reservation = session.GetReservationDetails(reservation_id).ReservationDescription
     for resource in reservation.Resources:
@@ -43,16 +44,55 @@ def get_reservation_ports(session, reservation_id, model_name='Generic Traffic G
     return reservation_ports
 
 
+class TrafficDriver(ResourceDriverInterface):
+
+    def initialize(self, context, log_group='traffic_shells'):
+        self.logger = get_qs_logger(log_group=log_group, log_file_prefix=context.resource.name)
+        self.logger.setLevel(logging.DEBUG)
+        self.handler.initialize(context, self.logger)
+
+    def cleanup(self):
+        pass
+
+    def get_inventory(self, context):
+        return self.handler.load_inventory(context)
+
+
+class TrafficHandler:
+
+    def initialize(self, resource, logger, packages_loggers=[]):
+
+        self.resource = resource
+        self.service = resource
+        self.logger = logger
+
+        for package_logger in packages_loggers:
+            package_logger = logging.getLogger(package_logger)
+            package_logger.setLevel(self.logger.level)
+            for handler in self.logger.handlers:
+                if handler not in package_logger.handlers:
+                    package_logger.addHandler(handler)
+
+    def get_connection_details(self, context):
+        self.address = context.resource.address
+        self.logger.debug(f'Address - {self.address}')
+        self.user = self.resource.user
+        self.logger.debug(f'User - {self.user}')
+        self.logger.debug(f'Encrypted password - {self.resource.password}')
+        self.password = CloudShellSessionContext(context).get_api().DecryptPassword(self.resource.password).Value
+        self.logger.debug(f'Password - {self.password}')
+
+
 class TgChassisDriver(TrafficDriver):
 
     def initialize(self, context, log_group='traffic_shells'):
-        super(TgChassisDriver, self).initialize(context, log_group)
+        super().initialize(context, log_group)
 
 
 class TgControllerDriver(TrafficDriver):
 
     def initialize(self, context, log_group='traffic_shells'):
-        super(TgControllerDriver, self).initialize(context, log_group)
+        super().initialize(context, log_group)
 
     def cleanup(self):
         self.handler.cleanup()
@@ -94,8 +134,7 @@ class TgChassisHandler(TrafficHandler):
 class TgControllerHandler(TrafficHandler):
 
     def initialize(self, context, logger, service):
-        super(TgControllerHandler, self).initialize(resource=service, logger=logger)
-        self.get_connection_details(context)
+        super().initialize(resource=service, logger=logger)
 
 
 def enqueue_keep_alive(context):
