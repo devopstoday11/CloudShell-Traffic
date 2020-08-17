@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from cloudshell.api.cloudshell_api import CloudShellAPISession, InputNameValue
+from cloudshell.api.cloudshell_api import CloudShellAPISession, InputNameValue, ServiceInstance
 from cloudshell.logging.qs_logger import get_qs_logger
 from cloudshell.shell.core.driver_context import ResourceCommandContext
 from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterface
@@ -15,15 +15,16 @@ CPE_MODEL = 'Cpe'
 CNR_MODEL = 'Cnr'
 HEALTHCHECK_STATUS = 'Healthcheck_Status'
 JIRA_MODEL = 'Jira'
+REDIRECT_DB_MODEL = 'Redirect_DB'
 RESOURCE_PROVIDER_MODEL = 'Resource_Provider'
 
 
-def set_health_check_status_live_status(context: ResourceCommandContext, status: bool,
-                                        status_selector: Optional[str] = 'none') -> None:
-    """ Set the live status attribute for a healthcheck status service connected to a resource.
-
+def set_health_check_live_status(context: ResourceCommandContext, object_name: str, status: bool,
+                                 status_selector: Optional[str] = 'none') -> ServiceInstance:
+    """ Set the live status attribute for a healthcheck status service connected to an object (resource of service).
 
     :param context: Resource command context.
+    :param object_name: The object that the healthcheck service is connected to.
     :param status: True will set the live status to Online, False will set the live status to Error.
     :param status_selector: Selects the requested healthcheck status service in case multiple services are connected
         to the resource.
@@ -31,15 +32,18 @@ def set_health_check_status_live_status(context: ResourceCommandContext, status:
 
     hc_service = None
     description = get_reservation_description(context)
-    resource_connectors = [c for c in description.Connectors if context.resource.name in [c.Source, c.Target]]
+    resource_connectors = [c for c in description.Connectors if object_name in [c.Source, c.Target]]
     for connector in resource_connectors:
-        other_end_name = connector.Target if connector.Source == context.resource.name else connector.Source
-        other_end_service = [s for s in description.Services if s.Alias == other_end_name][0]
-        if other_end_service.ServiceName == HEALTHCHECK_STATUS:
-            hc_service_selector = [a for a in other_end_service.Attributes if a.Name == 'Healthcheck_Status.status_selector'][0].Value
-            if hc_service_selector == status_selector:
-                hc_service = other_end_service
-                break
+        other_end_name = connector.Target if connector.Source == object_name else connector.Source
+        other_end_services = [s for s in description.Services if s.Alias == other_end_name]
+        if other_end_services:
+            other_end_service = other_end_services[0]
+            if other_end_service.ServiceName == HEALTHCHECK_STATUS:
+                a_name = 'Healthcheck_Status.status_selector'
+                hc_service_selector = [a for a in other_end_service.Attributes if a.Name == a_name][0].Value
+                if hc_service_selector == status_selector:
+                    hc_service = other_end_service
+                    break
 
     if hc_service:
         cs_session = CloudShellAPISession(host=context.connectivity.server_address,
@@ -49,8 +53,11 @@ def set_health_check_status_live_status(context: ResourceCommandContext, status:
                                   'set_live_status',
                                   [InputNameValue('status', 'Online' if status else 'Error')])
 
+    return hc_service
+
 
 class HealthCheckDriver(ResourceDriverInterface):
+    """ Base class for all Health Check resource drivers. """
 
     def initialize(self, context, resource, log_group='healthcheck_shells', packages_loggers=None):
 
@@ -76,7 +83,7 @@ class HealthCheckDriver(ResourceDriverInterface):
         self.logger.debug(f'Address - {self.address}')
         self.user = self.resource.user
         self.logger.debug(f'User - {self.user}')
-        self.logger.debug(f'Encripted password - {self.resource.password}')
+        self.logger.debug(f'Encrypted password - {self.resource.password}')
         self.password = CloudShellSessionContext(context).get_api().DecryptPassword(self.resource.password).Value
         self.logger.debug(f'Password - {self.password}')
 

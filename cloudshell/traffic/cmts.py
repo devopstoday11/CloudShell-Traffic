@@ -4,7 +4,7 @@ from abc import abstractmethod
 
 from cloudshell.shell.core.driver_context import InitCommandContext
 
-from .healthcheck import HealthCheckDriver, set_health_check_status_live_status
+from .healthcheck import HealthCheckDriver, set_health_check_live_status
 from .helpers import get_resources_from_reservation
 
 CMTS_MODEL = 'Cmts'
@@ -120,6 +120,6 @@ class CmtsDriver(HealthCheckDriver):
             report['status'] = str(e)
         self.logger.info(f'CMTS health check report {json.dumps(report, indent=2)}')
 
-        set_health_check_status_live_status(context, report['result'])
+        set_health_check_live_status(context, self.resource.name, report['result'])
 
         return {'report': report, 'log': ''}
