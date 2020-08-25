@@ -63,8 +63,7 @@ class CmtsDriver(HealthCheckDriver):
         self.logger.info(gen_port_channel.cnr_ip_address)
 
     def get_cm_state(self, mac_address):
-        self.cmts.get_cable_modems(mac_address)
-        cable_modem = self.cmts.cable_modems.get(mac_address)
+        cable_modem = self.cmts.get_cable_modems(mac_address).get(mac_address.lower())
         if cable_modem:
             self.logger.debug(f'mac - {mac_address} -> cable modem state {cable_modem.state.name}')
             return cable_modem.state.name
@@ -72,8 +71,7 @@ class CmtsDriver(HealthCheckDriver):
         return 'None'
 
     def get_cm_attributes(self, mac_address):
-        self.cmts.get_cable_modems(mac_address)
-        cable_modem = self.cmts.cable_modems.get(mac_address)
+        cable_modem = self.cmts.get_cable_modems(mac_address).get(mac_address.lower())
         if cable_modem:
             attributes = cable_modem.get_attributes()
             self.logger.debug(f'mac - {mac_address} -> cable modem attributes {attributes}')
@@ -82,7 +80,7 @@ class CmtsDriver(HealthCheckDriver):
         return 'None'
 
     def get_cm_cpe(self, mac_address):
-        cable_modem = self.cmts.get_cable_modems(mac_address)[mac_address]
+        cable_modem = self.cmts.get_cable_modems(mac_address).get(mac_address.lower())
         if cable_modem:
             cpe = cable_modem.get_cpe()
             if cpe:
@@ -96,28 +94,28 @@ class CmtsDriver(HealthCheckDriver):
 
     def get_cm_domain(self, mac_address):
         mac_domain = None
-        self.cmts.get_cable_modems(mac_address)
-        if self.cmts.cable_modems.get(mac_address):
+        cable_modem = self.cmts.get_cable_modems(mac_address).get(mac_address.lower())
+        if cable_modem:
             self.cmts.get_inventory()
-            mac_domain = self.cmts.cable_modems.get(mac_address).mac_domain
+            mac_domain = cable_modem.mac_domain
         self.logger.debug(f'mac - {mac_address} -> mac domain {mac_domain}')
         return mac_domain.name if mac_domain else ''
 
     def get_cm_health_check(self, context, mac_address, *states):
         report = super().clean_report
         report['name'] = self.resource.name
-        self.cmts.get_cable_modems(mac_address)
-        try:
-            mac = self.cmts.cable_modems[mac_address]
+        cable_modem = self.cmts.get_cable_modems(mac_address).get(mac_address.lower())
+        if cable_modem:
+            mac = self.cmts.cable_modems[mac_address.lower()]
             attributes = mac.get_attributes()
             self.logger.debug(f'attributes {attributes}')
             report['result'] = mac.state in states
             report['status'] = mac.state.name
             report['summary'] = attributes
             report['log'] = {}
-        except Exception as e:
+        else:
             report['result'] = False
-            report['status'] = str(e)
+            report['status'] = f'no CM for mac - {mac_address}'
         self.logger.info(f'CMTS health check report {json.dumps(report, indent=2)}')
 
         set_health_check_live_status(context, self.resource.name, report['result'])
