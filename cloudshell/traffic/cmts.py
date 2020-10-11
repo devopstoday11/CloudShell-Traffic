@@ -7,10 +7,9 @@ from cloudshell.shell.core.driver_context import InitCommandContext
 from .healthcheck import HealthCheckDriver, set_health_check_live_status
 from .helpers import get_resources_from_reservation
 
-CMTS_MODEL = 'Cmts'
-CISCO_CMTS_MODEL = 'Cisco_CMTS_Shell'
-CASA_CMTS_MODEL = 'Casa_CMTS_Shell'
-ARRIS_CMTS_MODEL = 'Arris_CMTS_Shell'
+CISCO_CMTS_MODEL = 'Cisco_Cmts'
+CASA_CMTS_MODEL = 'Casa_Cmts'
+ARRIS_CMTS_MODEL = 'Arris_Cmts'
 
 
 def get_mac_domain_from_sub_resource():
@@ -36,31 +35,36 @@ class CmtsDriver(HealthCheckDriver):
         self.cmts.disconnect()
         super().cleanup()
 
-    def load_inventory(self, gen_chassis, GenericPortChannel):
+    def load_inventory(self, gen_chassis):
         self.cmts.get_inventory()
-        self.resource.add_sub_resource('C0', gen_chassis)
+        self.resource.add_sub_resource('C1', gen_chassis)
         for module in self.cmts.modules.values():
             self.logger.debug(f'Loading module {module.name}')
             self.load_module(gen_chassis, module)
         for mac_domain in self.cmts.mac_domains.values():
             self.logger.debug(f'Loading mac domain {mac_domain.name}')
-            self.load_mac_domain(self.resource, mac_domain, GenericPortChannel)
+            self.load_mac_domain(self.resource, mac_domain)
         return self.resource.create_autoload_details()
 
     @abstractmethod
     def load_module(self, gen_chassis, module):
         pass
 
-    def load_mac_domain(self, resource, mac_domain, GenericPortChannel):
+    def load_mac_domain(self, resource, mac_domain, module, num_ports):
         mac_domain_name = mac_domain.name.replace('(', '[').replace(')', ']')
-        gen_port_channel = GenericPortChannel(f'MacDomain-{mac_domain_name}')
-        resource.add_sub_resource(mac_domain.name, gen_port_channel)
+        GenericModule = getattr(module, 'GenericModule')
+        gen_module = GenericModule(f'MacDomain-{mac_domain_name}')
+        resource.add_sub_resource(mac_domain.name, gen_module)
         down_stream_port = ['DownStream-Port-' + stream.index for stream in mac_domain.down_streams]
         up_stream_ports = ['UpStream-Port-' + stream.index for stream in mac_domain.up_streams]
-        gen_port_channel.associated_ports = f'{" ".join(down_stream_port)} {" ".join(up_stream_ports)}'
+        gen_module.associated_ports = f'{" ".join(down_stream_port)} {" ".join(up_stream_ports)}'
         cnr = mac_domain.get_helper()
-        gen_port_channel.cnr_ip_address = str(cnr)
-        self.logger.info(gen_port_channel.cnr_ip_address)
+        gen_module.cnr_ip_address = str(cnr)
+        self.logger.info(gen_module.cnr_ip_address)
+        GenericPort = getattr(module, 'GenericPort')
+        for port_id in range(1, num_ports + 1):
+            gen_port = GenericPort(f'Port-{port_id}')
+            gen_module.add_sub_resource(f'P{port_id}', gen_port)
 
     def get_cm_state(self, mac_address):
         cable_modem = self.cmts.get_cable_modems(mac_address).get(mac_address.lower())

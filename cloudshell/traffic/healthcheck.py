@@ -77,7 +77,7 @@ class HealthCheckDriver(ResourceDriverInterface):
         self.logger = get_qs_logger(log_group=log_group, log_file_prefix=context.resource.name)
         self.logger.setLevel(logging.DEBUG)
 
-        for package_logger in packages_loggers or ['pycmts', 'pylgi']:
+        for package_logger in packages_loggers or ['pycmts', 'pycnr', 'pylgi']:
             package_logger = logging.getLogger(package_logger)
             package_logger.setLevel(self.logger.level)
             for handler in self.logger.handlers:
