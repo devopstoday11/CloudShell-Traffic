@@ -8,14 +8,17 @@ from cloudshell.shell.core.resource_driver_interface import ResourceDriverInterf
 from cloudshell.shell.core.session.cloudshell_session import CloudShellSessionContext
 from cloudshell.workflow.orchestration.sandbox import Sandbox
 
-from .helpers import get_reservation_id, get_reservation_description
+from cloudshell.traffic.helpers import (get_reservation_id, get_reservation_description,
+                                        WriteMessageToReservationOutputHandler)
 
 ACS_MODEL = 'Acs'
+CABLE_MODEM_FAMILY = 'CS_CableModem'
 CABLE_MODEM_MODEL = 'Cable_Modem'
 CPE_MODEL = 'Cpe'
 CNR_MODEL = 'Cnr'
-HEALTHCHECK_STATUS = 'Healthcheck_Status'
+HEALTHCHECK_STATUS_MODEL = 'Healthcheck_Status'
 JIRA_MODEL = 'Jira'
+L1_SPLITTER_MODEL = 'L1 Splitter 2 Chassis'
 REDIRECT_DB_MODEL = 'Redirect_DB'
 RESOURCE_PROVIDER_MODEL = 'Resource_Provider'
 
@@ -36,8 +39,8 @@ def get_health_check_service(context: Union[ResourceCommandContext, Sandbox], ob
         other_end_services = [s for s in description.Services if s.Alias == other_end_name]
         if other_end_services:
             other_end_service = other_end_services[0]
-            if other_end_service.ServiceName == HEALTHCHECK_STATUS:
-                a_name = 'Healthcheck_Status.status_selector'
+            if other_end_service.ServiceName == HEALTHCHECK_STATUS_MODEL:
+                a_name = f'{HEALTHCHECK_STATUS_MODEL}.status_selector'
                 hc_service_selector = [a for a in other_end_service.Attributes if a.Name == a_name][0].Value
                 if hc_service_selector == status_selector:
                     return other_end_service
@@ -95,7 +98,11 @@ class HealthCheckDriver(ResourceDriverInterface):
         self.user = self.resource.user
         self.logger.debug(f'User - {self.user}')
         self.logger.debug(f'Encrypted password - {self.resource.password}')
-        self.password = CloudShellSessionContext(context).get_api().DecryptPassword(self.resource.password).Value
+        try:
+            self.password = CloudShellSessionContext(context).get_api().DecryptPassword(self.resource.password).Value
+        except Exception as _:
+            # Some models use clear text passwords or ignore the password altogether.
+            self.password = self.resource.password
         self.logger.debug(f'Password - {self.password}')
 
     @property
@@ -107,3 +114,20 @@ class HealthCheckDriver(ResourceDriverInterface):
         report['summary'] = {}
         report['log'] = {}
         return report
+
+
+class HealthCheckOrchestration:
+    """ Base orcharstarion script for healthcheck blueprints. """
+
+    def __init__(self, sandbox: Sandbox, debug: Optional[bool] = False) -> None:
+        """ Init sandbox APIs and loggers.
+
+        :param sandbox: current sandbox object.
+        :param debug: True - run in debug mode and send logs to the reservation console, False - non debug mode.
+        """
+        self.sandbox: Sandbox = sandbox
+        self.api: CloudShellAPISession = self.sandbox.automation_api
+        self.debug = debug
+        if self.debug:
+            self.sandbox.logger.setLevel(logging.DEBUG)
+        sandbox.logger.addHandler(WriteMessageToReservationOutputHandler(self.sandbox))

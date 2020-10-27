@@ -7,13 +7,10 @@ from cloudshell.shell.core.driver_context import InitCommandContext
 from .healthcheck import HealthCheckDriver, set_health_check_live_status
 from .helpers import get_resources_from_reservation
 
+CMTS_FAMILY = 'CS_CMTS'
 CISCO_CMTS_MODEL = 'Cisco_Cmts'
 CASA_CMTS_MODEL = 'Casa_Cmts'
 ARRIS_CMTS_MODEL = 'Arris_Cmts'
-
-
-def get_mac_domain_from_sub_resource():
-    return None
 
 
 def get_cmts_model(context):
@@ -116,6 +113,9 @@ class CmtsDriver(HealthCheckDriver):
             report['result'] = mac.state in states
             report['status'] = mac.state.name
             report['summary'] = attributes
+            cpe = cable_modem.get_cpe()
+            if cpe:
+                report['summary']['cpe'] = cpe.get_attributes()
             report['log'] = {}
         else:
             report['result'] = False

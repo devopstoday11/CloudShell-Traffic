@@ -2,7 +2,7 @@
 import logging
 import re
 import time
-from typing import List, Optional, Union
+from typing import List, Union
 
 from cloudshell.api.cloudshell_api import (ReservationDescriptionInfo, ReservedResourceInfo, ServiceInstance,
                                            SetConnectorRequest, CloudShellAPISession)
@@ -37,15 +37,27 @@ def get_cs_session(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -
                                     domain=context_or_sandbox.reservation.domain)
 
 
-def get_reservation_id(context_or_sandbox: Union[ReservationContextDetails, ResourceCommandContext, Sandbox]) -> str:
-    """ Return reservation ID from context. """
-    if type(context_or_sandbox) == Sandbox:
-        return context_or_sandbox.id
-    else:
-        try:
-            return context_or_sandbox.reservation.reservation_id
-        except AttributeError as _:
-            return context_or_sandbox.reservation.id
+def get_reservation_id(context_sandbox_reservation) -> str:
+    """ Returns reservation ID from context, sandbox, or reservation.
+
+    Do not add type hinting as there are way too many around cloudshell API.
+    """
+    try:
+        return context_sandbox_reservation.id
+    except AttributeError as _:
+        pass
+    try:
+        return context_sandbox_reservation.reservation.reservation_id
+    except AttributeError as _:
+        pass
+    try:
+        return context_sandbox_reservation.reservation.id
+    except AttributeError as _:
+        pass
+    try:
+        return context_sandbox_reservation.Reservation.Id
+    except AttributeError as _:
+        pass
 
 
 def get_reservation_description(context_or_sandbox: Union[ResourceCommandContext, Sandbox]) -> ReservationDescriptionInfo:
@@ -113,51 +125,46 @@ def add_resource_to_db(context: ResourceCommandContext, resource_model, resource
         set_family_attribute(context, resource_full_name, attribute, value)
 
 
-def add_resources_to_reservation(context: ResourceCommandContext, *resources_full_path):
-    reservation_id = get_reservation_id(context)
-    cs_session = get_cs_session(context)
-    cs_session.AddResourcesToReservation(reservationId=reservation_id, resourcesFullPath=list(resources_full_path),
-                                         shared=True)
-    all_resources = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Resources
-    new_resources = [r for r in all_resources if r.Name in resources_full_path]
-    while len(new_resources) != len(resources_full_path):
-        time.sleep(1)
+def wait_for_resources(cs_session: CloudShellAPISession, reservation_id: str, resources_names: Union[list, str],
+                       timeout: int = 4) -> None:
+    """ Wait untill all resources show in reservation detilas. """
+    if type(resources_names) == str:
+        resources_names = [resources_names]
+    for _ in range(timeout + 1):
         all_resources = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Resources
-        new_resources = [r for r in all_resources if r.Name in resources_full_path]
-    return new_resources
-
-
-def add_service_to_reservation(context: ResourceCommandContext, service_name: str, alias: Optional[str] = None,
-                               attributes: Optional[list] = None) -> ServiceInstance:
-    if not alias:
-        alias = service_name
-    attributes = attributes or []
-    reservation_id = get_reservation_id(context)
-    cs_session = get_cs_session(context)
-    cs_session.AddServiceToReservation(reservationId=reservation_id,
-                                       serviceName=service_name, alias=alias,
-                                       attributes=attributes)
-    all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
-    new_service = [s for s in all_services if s.ServiceName == service_name and s.Alias == alias]
-    while not new_service:
+        new_resources = [r for r in all_resources if r.Name in resources_names]
+        if len(new_resources) == len(resources_names):
+            return
         time.sleep(1)
+    raise TimeoutError(f'Resources {resources_names} not in reservation after {timeout} seconds')
+
+
+def wait_for_services(cs_session: CloudShellAPISession, reservation_id: str, aliases: Union[list, str],
+                      timeout: int = 4) -> None:
+    """ Wait untill all services show in reservation detilas. """
+    if type(aliases) == str:
+        aliases = [aliases]
+    for _ in range(timeout + 1):
         all_services = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Services
-        new_service = [s for s in all_services if s.ServiceName == service_name and s.Alias == alias]
-    return new_service[0]
-
-
-def add_connector_to_reservation(context: ResourceCommandContext, source_name, target_name, direction='bi', alias=''):
-    reservation_id = get_reservation_id(context)
-    cs_session = get_cs_session(context)
-    connector = SetConnectorRequest(source_name, target_name, direction, alias)
-    cs_session.SetConnectorsInReservation(reservation_id, [connector])
-    all_connectors = get_reservation_description(context).Connectors
-    new_connectors = [c for c in all_connectors if c.Source == source_name and c.Target == target_name]
-    while len(new_connectors) == 0:
+        new_services = [s for s in all_services if s.Alias in aliases]
+        if len(new_services) == len(aliases):
+            return
         time.sleep(1)
+    raise TimeoutError(f'Services {aliases} not in reservation after {timeout} seconds')
+
+
+def wait_for_connectors(cs_session: CloudShellAPISession, reservation_id: str, aliases: Union[list, str],
+                        timeout: int = 4) -> None:
+    """ Wait untill all connectors show in reservation detilas. """
+    if type(aliases) == str:
+        aliases = [aliases]
+    for _ in range(timeout + 1):
         all_connectors = cs_session.GetReservationDetails(reservation_id).ReservationDescription.Connectors
-        new_connectors = [c for c in all_connectors if c.Source == source_name and c.Target == target_name]
-    return connector
+        new_connectors = [c for c in all_connectors if c.Alias in aliases]
+        if len(new_connectors) == len(aliases):
+            return
+        time.sleep(1)
+    raise TimeoutError(f'Connectors {aliases} not in reservation after {timeout} seconds')
 
 
 def get_resources_from_reservation(context_or_sandbox: Union[ResourceCommandContext, Sandbox],
