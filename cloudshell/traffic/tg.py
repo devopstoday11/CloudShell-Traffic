@@ -12,6 +12,8 @@ from .helpers import get_reservation_id
 from .quali_rest_api_helper import create_quali_api_instance
 
 
+TGN_CHASSIS_FAMILY = 'CS_TrafficGeneratorChassis'
+TGN_CONTROLLER_FAMILY = 'CS_TrafficGeneratorController'
 BYTEBLOWER_CHASSIS_MODEL = 'ByteBlower Chassis Shell 2G'
 BYTEBLOWER_CONTROLLER_MODEL = 'ByteBlower Controller Shell 2G'
 IXIA_CHASSIS_MODEL = 'Ixia Chassis Shell 2G'
